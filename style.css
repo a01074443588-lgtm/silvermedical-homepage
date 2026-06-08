@@ -112,6 +112,9 @@ img {
   inset: 0;
   height: 100%;
   object-fit: cover;
+  transform: scale(1.04);
+  animation: heroImageDrift 18s ease-in-out infinite alternate;
+  will-change: transform;
 }
 
 .hero-overlay {
@@ -128,6 +131,27 @@ img {
   margin: 0 auto;
   padding: 110px 0 80px;
   color: #fffdf7;
+}
+
+.hero-content .eyebrow,
+.hero-content h1,
+.hero-content p:not(.eyebrow),
+.hero-actions {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: heroFadeUp 0.9s ease forwards;
+}
+
+.hero-content h1 {
+  animation-delay: 0.15s;
+}
+
+.hero-content p:not(.eyebrow) {
+  animation-delay: 0.3s;
+}
+
+.hero-actions {
+  animation-delay: 0.45s;
 }
 
 .eyebrow {
@@ -406,6 +430,44 @@ img {
 .site-footer p {
   margin: 8px 0 0;
   color: #dce4d4;
+}
+
+@keyframes heroImageDrift {
+  from {
+    transform: scale(1.04) translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: scale(1.1) translate3d(-18px, -10px, 0);
+  }
+}
+
+@keyframes heroFadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .hero > img,
+  .hero-content .eyebrow,
+  .hero-content h1,
+  .hero-content p:not(.eyebrow),
+  .hero-actions {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .button:hover,
+  .button:focus-visible {
+    transform: none;
+  }
 }
 
 @media (max-width: 920px) {
