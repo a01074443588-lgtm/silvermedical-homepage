@@ -111,9 +111,11 @@ img {
   position: absolute;
   inset: 0;
   height: 100%;
+  width: 115%;
+  max-width: none;
   object-fit: cover;
-  transform: scale(1.08);
-  animation: heroImageDrift 24s ease-in-out infinite;
+  transform: scale(1.08) translate3d(0, 0, 0);
+  animation: heroImageDrift 16s ease-in-out infinite alternate;
   will-change: transform;
 }
 
@@ -433,16 +435,12 @@ img {
 }
 
 @keyframes heroImageDrift {
-  0% {
+  from {
     transform: scale(1.08) translate3d(0, 0, 0);
   }
 
-  45% {
-    transform: scale(1.14) translate3d(-34px, -14px, 0);
-  }
-
-  100% {
-    transform: scale(1.1) translate3d(18px, -8px, 0);
+  to {
+    transform: scale(1.16) translate3d(-72px, -18px, 0);
   }
 }
 
