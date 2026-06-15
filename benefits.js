@@ -82,6 +82,10 @@ const refs = {
   family90Detail: document.querySelector("#family90Detail"),
   comparisonBody: document.querySelector("#comparisonBody"),
   gradeBody: document.querySelector("#gradeBody"),
+  detailTableTitle: document.querySelector("#detailTableTitle"),
+  detailTableDescription: document.querySelector("#detailTableDescription"),
+  detailFirstHeader: document.querySelector("#detailFirstHeader"),
+  detailSecondHeader: document.querySelector("#detailSecondHeader"),
   discountCol1: document.querySelector("#discountCol1"),
   discountCol2: document.querySelector("#discountCol2"),
   counselMemo: document.querySelector("#counselMemo"),
@@ -154,7 +158,9 @@ function calculate({ serviceType, grade, discountKey }) {
   const totalBenefit = unitRate * days;
   const discount = getSelectedDiscount(serviceType, discountKey);
   const careCopay = totalBenefit * discount.rate;
-  const foodCost = serviceType === "visit" ? 0 : days * (mealCount * FOOD.meal + snackCount * FOOD.snack);
+  const foodCost = serviceType === "visit" || discount.key === "basic"
+    ? 0
+    : days * (mealCount * FOOD.meal + snackCount * FOOD.snack);
   const total = careCopay + foodCost;
   const limit = DATA.homeLimit[grade];
   const overLimit = isHomeService(serviceType) && totalBenefit > limit;
@@ -249,6 +255,8 @@ function renderSummary() {
   refs.careDetail.textContent = `${won(result.unitRate)} x ${result.days}일 x 본인부담 ${rateText(result.discount.rate)}`;
   refs.foodDetail.textContent = serviceType === "visit"
     ? "방문요양은 식재료비를 계산하지 않습니다."
+    : result.discount.key === "basic"
+      ? "기초수급은 비급여 식재료비를 0원으로 표시합니다."
     : `식사 ${result.mealCount}회, 간식 ${result.snackCount}회 / ${result.days}일`;
   refs.familyPayDetail.textContent = `${result.familyLabel}, ${result.selectedCareDays}회 기준 상담용 예상 금액입니다.`;
   refs.regularCareDetail.textContent = `${won(REGULAR_CARE.hourlyPay)} x ${result.regularCareHours}시간 x ${result.days}회`;
@@ -280,6 +288,32 @@ function renderComparison(serviceType, grade) {
 }
 
 function renderGradeTable(serviceType) {
+  if (serviceType === "visit") {
+    refs.detailTableTitle.textContent = "방문시간별 전체 보기";
+    refs.detailTableDescription.textContent = "현재 방문횟수와 감경 구분을 기준으로 방문시간별 본인부담금을 비교합니다.";
+    refs.detailFirstHeader.textContent = "방문시간";
+    refs.detailSecondHeader.textContent = "1회 수가";
+    refs.gradeBody.innerHTML = Object.entries(DATA.visit).map(([minutes, unitRate]) => {
+      const cells = getDiscounts(serviceType).map((discount) => {
+        const careCopay = unitRate * (Math.max(0, Number(refs.days.value) || 0)) * discount.rate;
+        return `<td>${won(careCopay)}</td>`;
+      }).join("");
+
+      return `
+        <tr>
+          <td>${minutes}분</td>
+          <td>${won(unitRate)}</td>
+          ${cells}
+        </tr>
+      `;
+    }).join("");
+    return;
+  }
+
+  refs.detailTableTitle.textContent = "등급별 전체 보기";
+  refs.detailTableDescription.textContent = "현재 선택한 급여종류와 이용조건을 기준으로 1~5등급을 비교합니다.";
+  refs.detailFirstHeader.textContent = "등급";
+  refs.detailSecondHeader.textContent = "1일/1회 수가";
   refs.gradeBody.innerHTML = [1, 2, 3, 4, 5].map((grade) => {
     const cells = getDiscounts(serviceType).map((discount) => {
       const result = calculate({ serviceType, grade, discountKey: discount.key });
