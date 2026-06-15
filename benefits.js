@@ -298,18 +298,20 @@ function renderGradeTable(serviceType) {
 
 function renderMemo(serviceType, grade, result) {
   const serviceName = refs.serviceType.selectedOptions[0].textContent;
+  const foodMessage = serviceType === "visit"
+    ? "방문요양은 식재료비와 간식비를 계산하지 않습니다."
+    : `식재료비는 식사 1끼 ${won(FOOD.meal)}, 간식 1회 ${won(FOOD.snack)} 기준으로 계산했습니다.`;
   const limitMessage = serviceType === "facility"
-    ? "시설급여는 1일 수가 기준으로 계산했습니다."
-    : `재가급여 월 한도액은 ${won(result.limit)}이며, 한도 초과 여부는 실제 일정 기준으로 확인해야 합니다.`;
-  const familyMessage = serviceType === "visit"
-    ? `요양보호사 예상급여는 본인부담금과 별도 항목입니다. 일반요양은 ${won(result.regularCarePay)}, 선택 가족요양은 ${won(result.familyPay)} 기준입니다.`
-    : "가족요양 예상 급여는 방문요양 선택 시 별도 카드로 표시됩니다.";
+    ? "시설급여는 월 한도액이 아니라 1일 수가와 실제 이용일수 기준으로 계산합니다."
+    : `${serviceName} ${grade}등급 재가급여 월 한도액은 ${won(result.limit)}입니다. 한도 초과 여부는 실제 일정과 공단 인정 기준으로 확인해야 합니다.`;
+  const payMessage = serviceType === "visit"
+    ? "요양보호사 예상급여는 어르신 본인부담금과 별도 항목입니다. 화면의 예상급여 카드는 우리센터 지급 기준으로 계산한 참고 금액입니다."
+    : "표시 금액은 상담용 추정액이며, 실제 청구액은 이용일수와 비급여 실비에 따라 달라질 수 있습니다.";
 
   refs.counselMemo.innerHTML = `
-    <div class="memo-pill">상담 기준: ${YEAR}년 ${serviceName} ${grade}등급, 월 ${result.days}일 이용 기준입니다.</div>
-    <div class="memo-pill">식재료비는 기관 기준인 식사 1끼 ${won(FOOD.meal)}, 간식 1회 ${won(FOOD.snack)}으로 계산했습니다.</div>
+    <div class="memo-pill">${foodMessage}</div>
     <div class="memo-pill">${limitMessage}</div>
-    <div class="memo-pill">${familyMessage}</div>
+    <div class="memo-pill">${payMessage}</div>
   `;
 }
 
