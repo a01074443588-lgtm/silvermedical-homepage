@@ -122,6 +122,14 @@ function getDefaults(serviceType) {
 
 function syncVisitTimeByGrade() {
   if (refs.serviceType.value !== "visit") return;
+  if (refs.familyMode.value === "family60") {
+    refs.visitTime.value = "60";
+    return;
+  }
+  if (refs.familyMode.value === "family90") {
+    refs.visitTime.value = "90";
+    return;
+  }
   refs.visitTime.value = Number(refs.grade.value) <= 2 ? "240" : "180";
 }
 
@@ -334,6 +342,7 @@ function bindEvents() {
     refs.days.value = refs.familyMode.value === "regular"
       ? REGULAR_CARE.defaultDays
       : FAMILY_CARE[refs.familyMode.value].defaultDays;
+    syncVisitTimeByGrade();
     renderSummary();
   });
 
