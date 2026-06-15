@@ -116,7 +116,7 @@ function getUnitRate(serviceType, grade) {
 
 function getDefaults(serviceType) {
   if (serviceType === "facility") return { days: 30, meals: 3, snacks: 1 };
-  if (serviceType === "daycare") return { days: 20, meals: 1, snacks: 1 };
+  if (serviceType === "daycare") return { days: 20, meals: 2, snacks: 1 };
   return { days: 20, meals: 0, snacks: 0 };
 }
 
