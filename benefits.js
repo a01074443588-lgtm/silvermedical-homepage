@@ -101,7 +101,7 @@ function rateText(rate) {
 }
 
 function isHomeService(serviceType) {
-  return serviceType === "daycare" || serviceType === "visit";
+  return serviceType === "daycare" || serviceType === "visit" || serviceType === "shortstay" || serviceType === "respite";
 }
 
 function getDiscounts(serviceType) {
@@ -115,12 +115,15 @@ function getSelectedDiscount(serviceType, key = refs.discount.value) {
 function getUnitRate(serviceType, grade) {
   if (serviceType === "facility") return DATA.facility[grade];
   if (serviceType === "daycare") return DATA.daycare[refs.timeBand.value][grade];
+  if (serviceType === "shortstay" || serviceType === "respite") return DATA.daycare["13+"][grade];
   return DATA.visit[refs.visitTime.value];
 }
 
 function getDefaults(serviceType) {
   if (serviceType === "facility") return { days: 30, meals: 3, snacks: 1 };
   if (serviceType === "daycare") return { days: 20, meals: 2, snacks: 1 };
+  if (serviceType === "shortstay") return { days: 9, meals: 3, snacks: 1 };
+  if (serviceType === "respite") return { days: 12, meals: 3, snacks: 1 };
   return { days: 20, meals: 0, snacks: 0 };
 }
 
@@ -158,7 +161,8 @@ function calculate({ serviceType, grade, discountKey }) {
   const totalBenefit = unitRate * days;
   const discount = getSelectedDiscount(serviceType, discountKey);
   const careCopay = totalBenefit * discount.rate;
-  const foodCost = serviceType === "visit" || discount.key === "basic"
+  const basicFoodFree = discount.key === "basic" && (serviceType === "facility" || serviceType === "daycare");
+  const foodCost = serviceType === "visit" || basicFoodFree
     ? 0
     : days * (mealCount * FOOD.meal + snackCount * FOOD.snack);
   const total = careCopay + foodCost;
@@ -227,7 +231,11 @@ function updateVisibility() {
   refs.familyPayCard.classList.toggle("hidden", serviceType !== "visit");
   refs.discountCol1.textContent = serviceType === "facility" ? "시설 40% (12%)" : "재가 40% (9%)";
   refs.discountCol2.textContent = serviceType === "facility" ? "시설 60% (8%)" : "재가 60% (6%)";
-  refs.daysLabel.textContent = serviceType === "visit" ? "방문횟수" : "월 이용일수";
+  refs.daysLabel.textContent = serviceType === "visit"
+    ? "방문횟수"
+    : serviceType === "respite"
+      ? "연 이용일수"
+      : "월 이용일수";
 }
 
 function renderSummary() {
@@ -255,7 +263,7 @@ function renderSummary() {
   refs.careDetail.textContent = `${won(result.unitRate)} x ${result.days}일 x 본인부담 ${rateText(result.discount.rate)}`;
   refs.foodDetail.textContent = serviceType === "visit"
     ? "방문요양은 식재료비를 계산하지 않습니다."
-    : result.discount.key === "basic"
+    : result.discount.key === "basic" && (serviceType === "facility" || serviceType === "daycare")
       ? "기초수급은 비급여 식재료비를 0원으로 표시합니다."
     : `식사 ${result.mealCount}회, 간식 ${result.snackCount}회 / ${result.days}일`;
   refs.familyPayDetail.textContent = `${result.familyLabel}, ${result.selectedCareDays}회 기준 상담용 예상 금액입니다.`;
@@ -311,7 +319,9 @@ function renderGradeTable(serviceType) {
   }
 
   refs.detailTableTitle.textContent = "등급별 전체 보기";
-  refs.detailTableDescription.textContent = "현재 선택한 급여종류와 이용조건을 기준으로 1~5등급을 비교합니다.";
+  refs.detailTableDescription.textContent = serviceType === "shortstay" || serviceType === "respite"
+    ? "주야간보호 13시간 초과 수가와 현재 이용일수를 기준으로 1~5등급을 비교합니다."
+    : "현재 선택한 급여종류와 이용조건을 기준으로 1~5등급을 비교합니다.";
   refs.detailFirstHeader.textContent = "등급";
   refs.detailSecondHeader.textContent = "1일/1회 수가";
   refs.gradeBody.innerHTML = [1, 2, 3, 4, 5].map((grade) => {
@@ -334,8 +344,14 @@ function renderMemo(serviceType, grade, result) {
   const serviceName = refs.serviceType.selectedOptions[0].textContent;
   const foodMessage = serviceType === "visit"
     ? "방문요양은 식재료비와 간식비를 계산하지 않습니다."
+    : serviceType === "shortstay" || serviceType === "respite"
+      ? "단기보호와 치매가족휴가제는 기초수급 여부와 관계없이 식사 3끼와 간식비를 별도 계산합니다."
     : `식재료비는 식사 1끼 ${won(FOOD.meal)}, 간식 1회 ${won(FOOD.snack)} 기준으로 계산했습니다.`;
-  const limitMessage = serviceType === "facility"
+  const limitMessage = serviceType === "respite"
+    ? "치매가족휴가제는 재가급여 월 한도액과 별도로 계산하는 제도입니다. 연 12일 이내 이용 기준으로 표시합니다."
+    : serviceType === "shortstay"
+      ? "단기보호는 월 9일 이내 이용 기준으로 표시합니다. 급여비용은 주야간보호 13시간 초과 수가 기준입니다."
+    : serviceType === "facility"
     ? "시설급여는 월 한도액이 아니라 1일 수가와 실제 이용일수 기준으로 계산합니다."
     : `${serviceName} ${grade}등급 재가급여 월 한도액은 ${won(result.limit)}입니다. 한도 초과 여부는 실제 일정과 공단 인정 기준으로 확인해야 합니다.`;
   const payMessage = serviceType === "visit"

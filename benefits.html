@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>실버메디컬 장기요양 급여비용 계산기</title>
-  <link rel="stylesheet" href="benefits.css?v=20260615-table1">
+  <link rel="stylesheet" href="benefits.css?v=20260615-shortstay1">
 </head>
 <body>
   <main class="app">
@@ -44,6 +44,8 @@
           <option value="facility">시설급여</option>
           <option value="daycare">주야간보호</option>
           <option value="visit">방문요양</option>
+          <option value="shortstay">단기보호</option>
+          <option value="respite">치매가족휴가제</option>
         </select>
       </label>
       <label>
@@ -107,6 +109,8 @@
         <button type="button" data-preset="facility">시설 30일</button>
         <button type="button" data-preset="daycare">주간 20일</button>
         <button type="button" data-preset="visit">방문 20회</button>
+        <button type="button" data-preset="shortstay">단기 9일</button>
+        <button type="button" data-preset="respite">휴가제 12일</button>
         <button type="button" id="printBtn">상담표 인쇄</button>
       </div>
     </section>
@@ -219,6 +223,6 @@
       </div>
     </footer>
   </main>
-  <script src="benefits.js?v=20260615-table1"></script>
+  <script src="benefits.js?v=20260615-shortstay1"></script>
 </body>
 </html>
