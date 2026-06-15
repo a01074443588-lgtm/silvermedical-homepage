@@ -6,9 +6,15 @@ const FOOD = {
   snack: 1000
 };
 
+const REGULAR_CARE = {
+  label: "일반요양",
+  hourlyPay: 14000,
+  defaultDays: 20
+};
+
 const FAMILY_CARE = {
-  60: { label: "가족요양 60분", monthlyPay: 420000 },
-  90: { label: "가족요양 90분", monthlyPay: 380000 }
+  family60: { label: "가족 60분", hourlyPay: 21000, hours: 1, defaultDays: 20 },
+  family90: { label: "가족 90분", hourlyPay: 19000, hours: 1.5, defaultDays: 31 }
 };
 
 const DISCOUNTS = {
@@ -47,6 +53,7 @@ const refs = {
   timeBand: document.querySelector("#timeBand"),
   visitTime: document.querySelector("#visitTime"),
   days: document.querySelector("#days"),
+  daysLabel: document.querySelector("#daysLabel"),
   mealCount: document.querySelector("#mealCount"),
   snackCount: document.querySelector("#snackCount"),
   familyMode: document.querySelector("#familyMode"),
@@ -66,8 +73,13 @@ const refs = {
   familyPay: document.querySelector("#familyPay"),
   familyPayDetail: document.querySelector("#familyPayDetail"),
   familyBigPay: document.querySelector("#familyBigPay"),
+  selectedCarePayLabel: document.querySelector("#selectedCarePayLabel"),
+  regularCarePay: document.querySelector("#regularCarePay"),
+  regularCareDetail: document.querySelector("#regularCareDetail"),
   family60Pay: document.querySelector("#family60Pay"),
+  family60Detail: document.querySelector("#family60Detail"),
   family90Pay: document.querySelector("#family90Pay"),
+  family90Detail: document.querySelector("#family90Detail"),
   comparisonBody: document.querySelector("#comparisonBody"),
   gradeBody: document.querySelector("#gradeBody"),
   discountCol1: document.querySelector("#discountCol1"),
@@ -108,6 +120,24 @@ function getDefaults(serviceType) {
   return { days: 20, meals: 0, snacks: 0 };
 }
 
+function syncVisitTimeByGrade() {
+  if (refs.serviceType.value !== "visit") return;
+  refs.visitTime.value = Number(refs.grade.value) <= 2 ? "240" : "180";
+}
+
+function getRegularCareHours(grade) {
+  return Number(grade) <= 2 ? 4 : 3;
+}
+
+function getRegularCarePay(grade, days) {
+  return REGULAR_CARE.hourlyPay * getRegularCareHours(grade) * days;
+}
+
+function getFamilyCarePay(mode, days) {
+  const family = FAMILY_CARE[mode];
+  return family.hourlyPay * family.hours * days;
+}
+
 function calculate({ serviceType, grade, discountKey }) {
   const days = Math.max(0, Number(refs.days.value) || 0);
   const mealCount = Math.max(0, Number(refs.mealCount.value) || 0);
@@ -120,7 +150,19 @@ function calculate({ serviceType, grade, discountKey }) {
   const total = careCopay + foodCost;
   const limit = DATA.homeLimit[grade];
   const overLimit = isHomeService(serviceType) && totalBenefit > limit;
-  const family = FAMILY_CARE[refs.familyMode.value];
+  const careMode = refs.familyMode.value;
+  const selectedCare = careMode === "regular" ? REGULAR_CARE : FAMILY_CARE[careMode];
+  const regularCareHours = getRegularCareHours(grade);
+  const regularCarePay = getRegularCarePay(grade, days);
+  const family60Days = Math.min(days, FAMILY_CARE.family60.defaultDays);
+  const family60Pay = getFamilyCarePay("family60", family60Days);
+  const family90Pay = getFamilyCarePay("family90", days);
+  const selectedCareDays = careMode === "family60" ? family60Days : days;
+  const selectedCarePay = serviceType !== "visit"
+    ? 0
+    : careMode === "regular"
+      ? regularCarePay
+      : getFamilyCarePay(careMode, selectedCareDays);
 
   return {
     days,
@@ -134,8 +176,14 @@ function calculate({ serviceType, grade, discountKey }) {
     total,
     limit,
     overLimit,
-    familyPay: serviceType === "visit" ? family.monthlyPay : 0,
-    familyLabel: family.label
+    regularCareHours,
+    regularCarePay: serviceType === "visit" ? regularCarePay : 0,
+    family60Days,
+    selectedCareDays,
+    family60Pay: serviceType === "visit" ? family60Pay : 0,
+    family90Pay: serviceType === "visit" ? family90Pay : 0,
+    familyPay: selectedCarePay,
+    familyLabel: selectedCare.label
   };
 }
 
@@ -165,6 +213,7 @@ function updateVisibility() {
   refs.familyPayCard.classList.toggle("hidden", serviceType !== "visit");
   refs.discountCol1.textContent = serviceType === "facility" ? "시설 40% (12%)" : "재가 40% (9%)";
   refs.discountCol2.textContent = serviceType === "facility" ? "시설 60% (8%)" : "재가 60% (6%)";
+  refs.daysLabel.textContent = serviceType === "visit" ? "방문횟수" : "월 이용일수";
 }
 
 function renderSummary() {
@@ -177,16 +226,26 @@ function renderSummary() {
   refs.totalCost.textContent = won(result.total);
   refs.careCopay.textContent = won(result.careCopay);
   refs.foodCost.textContent = won(result.foodCost);
+  const careLabelMap = {
+    regular: "일반요양 예상급여",
+    family60: "가족 60분 예상급여",
+    family90: "가족 90분 예상급여"
+  };
+  refs.selectedCarePayLabel.textContent = careLabelMap[refs.familyMode.value];
   refs.familyPay.textContent = won(result.familyPay);
   refs.familyBigPay.textContent = won(result.familyPay);
-  refs.family60Pay.textContent = won(FAMILY_CARE[60].monthlyPay);
-  refs.family90Pay.textContent = won(FAMILY_CARE[90].monthlyPay);
+  refs.regularCarePay.textContent = won(result.regularCarePay);
+  refs.family60Pay.textContent = won(result.family60Pay);
+  refs.family90Pay.textContent = won(result.family90Pay);
   refs.resultNote.textContent = `${YEAR}년 ${serviceName} ${gradeName}, ${result.discount.label} 기준입니다.`;
   refs.careDetail.textContent = `${won(result.unitRate)} x ${result.days}일 x 본인부담 ${rateText(result.discount.rate)}`;
   refs.foodDetail.textContent = serviceType === "visit"
     ? "방문요양은 식재료비를 계산하지 않습니다."
     : `식사 ${result.mealCount}회, 간식 ${result.snackCount}회 / ${result.days}일`;
-  refs.familyPayDetail.textContent = `${result.familyLabel}, 월 ${result.days}일 기준 상담용 예상 금액입니다.`;
+  refs.familyPayDetail.textContent = `${result.familyLabel}, ${result.selectedCareDays}회 기준 상담용 예상 금액입니다.`;
+  refs.regularCareDetail.textContent = `${won(REGULAR_CARE.hourlyPay)} x ${result.regularCareHours}시간 x ${result.days}회`;
+  refs.family60Detail.textContent = `${won(FAMILY_CARE.family60.hourlyPay)} x ${result.family60Days}회 인정`;
+  refs.family90Detail.textContent = `${won(FAMILY_CARE.family90.hourlyPay)} x 1.5시간 x ${result.days}회`;
 
   if (result.overLimit) {
     refs.resultNote.textContent += ` 재가 월 한도액 ${won(result.limit)}을 초과할 수 있어 확인이 필요합니다.`;
@@ -235,7 +294,7 @@ function renderMemo(serviceType, grade, result) {
     ? "시설급여는 1일 수가 기준으로 계산했습니다."
     : `재가급여 월 한도액은 ${won(result.limit)}이며, 한도 초과 여부는 실제 일정 기준으로 확인해야 합니다.`;
   const familyMessage = serviceType === "visit"
-    ? `가족요양 예상 월 급여는 우리센터 기준 전체 금액 ${won(result.familyPay)}으로 표시했습니다. 본인부담금과 별도 항목입니다.`
+    ? `요양보호사 예상급여는 본인부담금과 별도 항목입니다. 일반요양은 ${won(result.regularCarePay)}, 선택 가족요양은 ${won(result.familyPay)} 기준입니다.`
     : "가족요양 예상 급여는 방문요양 선택 시 별도 카드로 표시됩니다.";
 
   refs.counselMemo.innerHTML = `
@@ -249,6 +308,7 @@ function renderMemo(serviceType, grade, result) {
 function bindEvents() {
   refs.serviceType.addEventListener("change", () => {
     setServiceDefaults();
+    syncVisitTimeByGrade();
     updateDiscountOptions();
     updateVisibility();
     renderSummary();
@@ -262,14 +322,26 @@ function bindEvents() {
     refs.visitTime,
     refs.days,
     refs.mealCount,
-    refs.snackCount,
-    refs.familyMode
+    refs.snackCount
   ].forEach((input) => input.addEventListener("input", renderSummary));
+
+  refs.grade.addEventListener("change", () => {
+    syncVisitTimeByGrade();
+    renderSummary();
+  });
+
+  refs.familyMode.addEventListener("change", () => {
+    refs.days.value = refs.familyMode.value === "regular"
+      ? REGULAR_CARE.defaultDays
+      : FAMILY_CARE[refs.familyMode.value].defaultDays;
+    renderSummary();
+  });
 
   document.querySelectorAll("[data-preset]").forEach((button) => {
     button.addEventListener("click", () => {
       refs.serviceType.value = button.dataset.preset;
       setServiceDefaults();
+      syncVisitTimeByGrade();
       updateDiscountOptions();
       updateVisibility();
       renderSummary();
@@ -281,6 +353,7 @@ function bindEvents() {
 
 bindEvents();
 setServiceDefaults();
+syncVisitTimeByGrade();
 updateDiscountOptions();
 updateVisibility();
 renderSummary();

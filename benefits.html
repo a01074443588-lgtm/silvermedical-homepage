@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
@@ -14,6 +14,7 @@
         <strong>실버메디컬복지센터 전용</strong>
         <span>2026년 장기요양 급여비용 상담 앱</span>
       </div>
+      <a class="home-shortcut" href="https://a01074443588-lgtm.github.io/silvermedical-homepage/">홈페이지</a>
     </header>
 
     <section class="hero">
@@ -83,7 +84,7 @@
         </select>
       </label>
       <label>
-        <span>월 이용일수</span>
+        <span id="daysLabel">월 이용일수</span>
         <input id="days" type="number" min="0" max="31" step="1" value="30">
       </label>
       <label id="mealCountWrap">
@@ -95,10 +96,11 @@
         <input id="snackCount" type="number" min="0" max="3" step="1" value="1">
       </label>
       <label id="familyModeWrap">
-        <span>가족요양 기준</span>
+        <span>요양 유형</span>
         <select id="familyMode">
-          <option value="60">가족요양 60분</option>
-          <option value="90">가족요양 90분</option>
+          <option value="regular">일반요양</option>
+          <option value="family60">가족요양 60분</option>
+          <option value="family90">가족요양 90분</option>
         </select>
       </label>
       <div class="quick-actions" aria-label="빠른 실행 버튼">
@@ -126,7 +128,7 @@
         <p id="foodDetail"></p>
       </article>
       <article class="result-card family-card" id="familyPayCard">
-        <span>가족요양 예상 월 급여</span>
+        <span id="selectedCarePayLabel">선택 유형 예상급여</span>
         <strong id="familyPay">0원</strong>
         <p id="familyPayDetail"></p>
       </article>
@@ -136,23 +138,26 @@
       <div class="family-hero">
         <div>
           <p class="eyebrow">보호자 요양보호사 상담용</p>
-          <h2>가족요양 예상 월 급여</h2>
-          <p>우리센터 기준으로 월 전체 예상 금액을 크게 표시합니다. 고용보험 등 개인별 공제 여부에 따라 실수령액은 달라질 수 있습니다.</p>
+          <h2>요양보호사 예상 월 급여</h2>
+          <p>우리센터 기준 전체 예상 금액입니다. 본인부담금과 별도이며, 고용보험 등 개인별 공제 여부에 따라 실수령액은 달라질 수 있습니다.</p>
         </div>
         <strong id="familyBigPay">0원</strong>
       </div>
       <div class="family-grid">
         <article>
-          <span>60분 월 20일 예상</span>
+          <span>일반요양 예상</span>
+          <strong id="regularCarePay">0원</strong>
+          <p id="regularCareDetail"></p>
+        </article>
+        <article>
+          <span>가족 60분 예상</span>
           <strong id="family60Pay">420,000원</strong>
+          <p id="family60Detail"></p>
         </article>
         <article>
-          <span>90분 월 20일 예상</span>
-          <strong id="family90Pay">380,000원</strong>
-        </article>
-        <article>
-          <span>보호자 안내</span>
-          <p>본인부담금과 가족요양 예상 급여는 별도 항목입니다.</p>
+          <span>가족 90분 예상</span>
+          <strong id="family90Pay">0원</strong>
+          <p id="family90Detail"></p>
         </article>
       </div>
     </section>

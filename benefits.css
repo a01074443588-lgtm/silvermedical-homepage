@@ -63,6 +63,30 @@ body::after {
   box-shadow: 0 0 34px rgba(57, 255, 136, 0.13);
 }
 
+.home-shortcut {
+  margin-left: auto;
+  min-width: 144px;
+  min-height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 2px solid rgba(65, 232, 255, 0.75);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(65, 232, 255, 0.22), rgba(57, 255, 136, 0.16));
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.home-shortcut:hover,
+.home-shortcut:focus-visible {
+  color: #06100a;
+  background: var(--cyan);
+  outline: 3px solid rgba(57, 255, 136, 0.35);
+}
+
 .brand-lock img {
   width: 180px;
   height: 96px;
@@ -488,11 +512,17 @@ tr:last-child td {
   .brand-lock,
   .app-footer {
     align-items: start;
+    flex-wrap: wrap;
   }
 
   .brand-lock img {
     width: 120px;
     height: 72px;
+  }
+
+  .home-shortcut {
+    width: 100%;
+    margin-left: 0;
   }
 
   .controls {
