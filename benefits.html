@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>실버메디컬 장기요양 급여비용 계산기</title>
+  <link rel="stylesheet" href="benefits.css">
+</head>
+<body>
+  <main class="app">
+    <header class="brand-lock">
+      <img src="assets/images/benefits-logo.jpg" alt="실버메디컬복지센터 로고">
+      <div>
+        <strong>실버메디컬복지센터 전용</strong>
+        <span>2026년 장기요양 급여비용 상담 앱</span>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow">실버메디컬복지센터 상담용</p>
+        <h1>장기요양 급여비용 계산기</h1>
+        <p class="lead">시설급여, 주야간보호, 방문요양, 가족요양을 2026년 기준으로 한눈에 확인합니다.</p>
+      </div>
+      <div class="hero-badge">
+        <span>식사 1끼</span>
+        <strong>3,500원</strong>
+        <span>간식 1회</span>
+        <strong>1,000원</strong>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="계산 조건">
+      <label>
+        <span>기준연도</span>
+        <select id="year">
+          <option value="2026">2026년</option>
+        </select>
+      </label>
+      <label>
+        <span>급여종류</span>
+        <select id="serviceType">
+          <option value="facility">시설급여</option>
+          <option value="daycare">주야간보호</option>
+          <option value="visit">방문요양</option>
+        </select>
+      </label>
+      <label>
+        <span>등급</span>
+        <select id="grade">
+          <option value="1">1등급</option>
+          <option value="2">2등급</option>
+          <option value="3">3등급</option>
+          <option value="4">4등급</option>
+          <option value="5">5등급</option>
+        </select>
+      </label>
+      <label>
+        <span>감경 구분</span>
+        <select id="discount"></select>
+      </label>
+      <label id="timeBandWrap">
+        <span>이용시간</span>
+        <select id="timeBand">
+          <option value="8-10">8~10시간</option>
+          <option value="6-8">6~8시간</option>
+          <option value="3-6">3~6시간</option>
+          <option value="10-13">10~13시간</option>
+          <option value="13+">13시간 초과</option>
+        </select>
+      </label>
+      <label id="visitTimeWrap">
+        <span>방문 시간</span>
+        <select id="visitTime">
+          <option value="180">180분</option>
+          <option value="240">240분</option>
+          <option value="150">150분</option>
+          <option value="120">120분</option>
+          <option value="90">90분</option>
+          <option value="60">60분</option>
+          <option value="30">30분</option>
+          <option value="210">210분</option>
+        </select>
+      </label>
+      <label>
+        <span>월 이용일수</span>
+        <input id="days" type="number" min="0" max="31" step="1" value="30">
+      </label>
+      <label id="mealCountWrap">
+        <span>하루 식사 횟수</span>
+        <input id="mealCount" type="number" min="0" max="3" step="1" value="3">
+      </label>
+      <label id="snackCountWrap">
+        <span>하루 간식 횟수</span>
+        <input id="snackCount" type="number" min="0" max="3" step="1" value="1">
+      </label>
+      <label id="familyModeWrap">
+        <span>가족요양 기준</span>
+        <select id="familyMode">
+          <option value="60">가족요양 60분</option>
+          <option value="90">가족요양 90분</option>
+        </select>
+      </label>
+      <div class="quick-actions" aria-label="빠른 실행 버튼">
+        <button type="button" data-preset="facility">시설 30일</button>
+        <button type="button" data-preset="daycare">주간 20일</button>
+        <button type="button" data-preset="visit">방문 20회</button>
+        <button type="button" id="printBtn">상담표 인쇄</button>
+      </div>
+    </section>
+
+    <section class="summary" aria-live="polite">
+      <article class="result-card primary">
+        <span>예상 월 납부액</span>
+        <strong id="totalCost">0원</strong>
+        <p id="resultNote">조건을 선택하면 자동 계산됩니다.</p>
+      </article>
+      <article class="result-card">
+        <span>장기요양 본인부담금</span>
+        <strong id="careCopay">0원</strong>
+        <p id="careDetail"></p>
+      </article>
+      <article class="result-card">
+        <span>식재료·간식비</span>
+        <strong id="foodCost">0원</strong>
+        <p id="foodDetail"></p>
+      </article>
+      <article class="result-card family-card" id="familyPayCard">
+        <span>가족요양 예상 월 급여</span>
+        <strong id="familyPay">0원</strong>
+        <p id="familyPayDetail"></p>
+      </article>
+    </section>
+
+    <section class="compare-section" id="familySection">
+      <div class="family-hero">
+        <div>
+          <p class="eyebrow">보호자 요양보호사 상담용</p>
+          <h2>가족요양 예상 월 급여</h2>
+          <p>우리센터 기준으로 월 전체 예상 금액을 크게 표시합니다. 고용보험 등 개인별 공제 여부에 따라 실수령액은 달라질 수 있습니다.</p>
+        </div>
+        <strong id="familyBigPay">0원</strong>
+      </div>
+      <div class="family-grid">
+        <article>
+          <span>60분 월 20일 예상</span>
+          <strong id="family60Pay">420,000원</strong>
+        </article>
+        <article>
+          <span>90분 월 20일 예상</span>
+          <strong id="family90Pay">380,000원</strong>
+        </article>
+        <article>
+          <span>보호자 안내</span>
+          <p>본인부담금과 가족요양 예상 급여는 별도 항목입니다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="compare-section">
+      <div class="section-title">
+        <h2>감경 구분별 빠른 비교</h2>
+        <p>급여종류에 맞는 본인부담률만 표시합니다.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th>본인부담률</th>
+              <th>요양 본인부담금</th>
+              <th>비급여</th>
+              <th>월 납부 예상</th>
+            </tr>
+          </thead>
+          <tbody id="comparisonBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="compare-section">
+      <div class="section-title">
+        <h2>등급별 전체 보기</h2>
+        <p>현재 선택한 급여종류와 이용조건을 기준으로 1~5등급을 비교합니다.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>등급</th>
+              <th>1일/1회 수가</th>
+              <th>일반</th>
+              <th id="discountCol1">감경 40%</th>
+              <th id="discountCol2">감경 60%</th>
+              <th>기초수급</th>
+            </tr>
+          </thead>
+          <tbody id="gradeBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="memo">
+      <h2>상담 시 안내 문구</h2>
+      <div id="counselMemo"></div>
+      <p class="source">주의: 이 앱은 상담용 추정 계산기입니다. 실제 청구액과 가족요양 지급액은 공단 인정 내용, 이용 횟수, 가산, 개인별 공제 여부, 비급여 실비에 따라 달라질 수 있습니다.</p>
+    </section>
+
+    <footer class="app-footer">
+      <img src="assets/images/benefits-logo.jpg" alt="">
+      <div>
+        <strong>실버메디컬복지센터 내부 상담 전용 자료</strong>
+        <span>무단 복제 및 타기관 상담자료 전용 사용을 금합니다.</span>
+      </div>
+    </footer>
+  </main>
+  <script src="benefits.js"></script>
+</body>
+</html>
