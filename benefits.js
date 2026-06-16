@@ -285,11 +285,11 @@ function renderComparison(serviceType, grade) {
     const result = calculate({ serviceType, grade, discountKey: discount.key });
     return `
       <tr>
-        <td>${discount.label}</td>
-        <td>${rateText(discount.rate)}</td>
-        <td>${won(result.careCopay)}</td>
-        <td>${won(result.foodCost)}</td>
-        <td class="highlight">${won(result.total)}</td>
+        <td data-label="구분">${discount.label}</td>
+        <td data-label="본인부담률">${rateText(discount.rate)}</td>
+        <td data-label="요양 본인부담금">${won(result.careCopay)}</td>
+        <td data-label="비급여">${won(result.foodCost)}</td>
+        <td data-label="월 납부 예상" class="highlight">${won(result.total)}</td>
       </tr>
     `;
   }).join("");
@@ -304,13 +304,13 @@ function renderGradeTable(serviceType) {
     refs.gradeBody.innerHTML = Object.entries(DATA.visit).map(([minutes, unitRate]) => {
       const cells = getDiscounts(serviceType).map((discount) => {
         const careCopay = unitRate * (Math.max(0, Number(refs.days.value) || 0)) * discount.rate;
-        return `<td>${won(careCopay)}</td>`;
+        return `<td data-label="${discount.label}">${won(careCopay)}</td>`;
       }).join("");
 
       return `
         <tr>
-          <td>${minutes}분</td>
-          <td>${won(unitRate)}</td>
+          <td data-label="방문시간">${minutes}분</td>
+          <td data-label="1회 수가">${won(unitRate)}</td>
           ${cells}
         </tr>
       `;
@@ -327,13 +327,13 @@ function renderGradeTable(serviceType) {
   refs.gradeBody.innerHTML = [1, 2, 3, 4, 5].map((grade) => {
     const cells = getDiscounts(serviceType).map((discount) => {
       const result = calculate({ serviceType, grade, discountKey: discount.key });
-      return `<td>${won(result.total)}</td>`;
+      return `<td data-label="${discount.label}">${won(result.total)}</td>`;
     }).join("");
 
     return `
       <tr>
-        <td>${grade}등급</td>
-        <td>${won(getUnitRate(serviceType, grade))}</td>
+        <td data-label="등급">${grade}등급</td>
+        <td data-label="1일/1회 수가">${won(getUnitRate(serviceType, grade))}</td>
         ${cells}
       </tr>
     `;
