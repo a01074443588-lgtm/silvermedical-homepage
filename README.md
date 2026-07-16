@@ -2,7 +2,7 @@
 
 실버메디컬복지센터 공식 홈페이지와 장기요양 급여비용 계산기를 함께 관리하는 정적 웹사이트입니다.
 
-요양원, 주간보호, 방문요양, 단기보호, 통합재가 서비스를 보호자가 한눈에 이해할 수 있도록 구성했고, `benefits.html` 하위페이지에서 감경률에 따른 한 달 예상 본인부담금을 계산할 수 있습니다.
+요양원, 주간보호, 방문요양, 방문목욕, 단기보호, 통합재가 서비스를 보호자가 이해하기 쉽도록 구성했고, 메뉴별 상세 페이지와 `benefits.html` 급여비용 계산기를 함께 제공합니다.
 
 ## 로컬에서 여는 방법
 
@@ -10,6 +10,8 @@ Windows 파일 탐색기에서 아래 파일을 더블클릭하면 바로 확인
 
 ```powershell
 C:\Users\jirlm\Documents\홈페이지\index.html
+C:\Users\jirlm\Documents\홈페이지\about.html
+C:\Users\jirlm\Documents\홈페이지\services.html
 C:\Users\jirlm\Documents\홈페이지\benefits.html
 ```
 
@@ -20,13 +22,23 @@ C:\Users\jirlm\Documents\홈페이지\benefits.html
 - GitHub Pages 배포 가능
 - Cloudflare Pages 배포 가능
 - GitHub 저장소 이름: `silvermedical-homepage`
-- 공개 주소: `https://a01074443588-lgtm.github.io/silvermedical-homepage/`
+- 공개 주소: `https://silvermedical.kr/`
 
 ## 폴더 구조
 
 ```text
 /
 ├─ index.html
+├─ about.html
+├─ services.html
+├─ facility.html
+├─ stories.html
+├─ contact.html
+├─ location.html
+├─ 404.html
+├─ sitemap.xml
+├─ robots.txt
+├─ favicon.ico
 ├─ style.css
 ├─ script.js
 ├─ benefits.html
@@ -41,13 +53,15 @@ C:\Users\jirlm\Documents\홈페이지\benefits.html
       ├─ main-hero.jpg
       ├─ facility-lounge.jpg
       ├─ care-room.jpg
-      ├─ care-bedroom.jpg
       ├─ dining-room.jpg
       ├─ bathroom.jpg
       ├─ gapo-massage.jpg
       ├─ meal-prep.jpg
+      ├─ meal-event.jpg
       ├─ naver-map.png
-      └─ program-room-polished.jpg
+      ├─ living-room.jpg
+      ├─ floor-entrance.jpg
+      └─ elevator.jpg
 ```
 
 ## 프로젝트 관리 기준
@@ -63,6 +77,7 @@ C:\Users\jirlm\Documents\홈페이지\benefits.html
 - 전화번호: 043-298-8588
 - 네이버 지도 링크: https://naver.me/FDntyyxE
 - 카카오톡 채널: https://pf.kakao.com/_Kxjtxhn
+- 유튜브 채널: https://www.youtube.com/@실버메디컬복지센터
 - 기관명: 실버메디컬복지센터 노인요양원&재가
 - 대표자: 연규항
 - 사업자등록번호: 301-80-34268
@@ -72,8 +87,8 @@ C:\Users\jirlm\Documents\홈페이지\benefits.html
 
 ## 확인해야 할 TODO
 
-- 공개 가능한 사진 최종 확인
-- `og:image` 경로를 배포 주소에 맞게 확인
+- 시설장 사진을 사용할 경우 시설장 본인이 사진을 직접 지정
+- 새로 추가하는 사진은 어르신·보호자·직원의 얼굴과 개인정보를 매번 확인
 - 지도 iframe 삽입은 선택 사항입니다. 현재는 네이버 지도 링크로 연결되어 있습니다.
 - 장기요양 급여비용 계산 수가와 감경률은 매년 고시 기준 변경 여부를 확인해야 합니다.
 

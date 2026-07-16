@@ -52,6 +52,37 @@ body::after {
   padding: 28px 0 52px;
 }
 
+.benefits-global-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 10px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--soft-shadow);
+}
+
+.benefits-global-nav a {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-radius: 5px;
+  color: #33443a;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.benefits-global-nav a:hover,
+.benefits-global-nav a:focus-visible,
+.benefits-global-nav a[aria-current="page"] {
+  background: #dff2e5;
+  color: #0f6f37;
+}
+
 .brand-lock {
   display: flex;
   align-items: center;
@@ -513,6 +544,9 @@ tr:last-child td {
 }
 
 @media (max-width: 640px) {
+  .benefits-global-nav {
+    justify-content: flex-start;
+  }
   .app {
     width: min(100% - 20px, 1280px);
     padding-top: 16px;
