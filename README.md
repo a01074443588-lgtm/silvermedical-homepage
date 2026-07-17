@@ -57,6 +57,7 @@ export DJANGO_SECRET_KEY="$(cat /home/silverhome/.config/silvermedical/django_se
 export DJANGO_ALLOWED_HOSTS="silvermedical.kr,www.silvermedical.kr,192.168.30.2,127.0.0.1,localhost"
 export DJANGO_CSRF_TRUSTED_ORIGINS="https://silvermedical.kr,https://www.silvermedical.kr"
 export DJANGO_SECURE_COOKIES="true"
+export CLOUDFLARED_RUN_AS="$(id -u):$(id -g)"
 
 docker compose -f compose.yaml -f compose.tunnel.yaml up -d --build
 ```

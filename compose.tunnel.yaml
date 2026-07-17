@@ -2,6 +2,7 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: silvermedical-tunnel
+    user: "${CLOUDFLARED_RUN_AS:?CLOUDFLARED_RUN_AS is required}"
     command:
       - tunnel
       - --no-autoupdate
