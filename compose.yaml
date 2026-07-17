@@ -1,0 +1,9 @@
+services:
+  homepage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: silvermedical-homepage
+    ports:
+      - "8080:80"
+    restart: unless-stopped

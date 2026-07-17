@@ -24,6 +24,20 @@ C:\Users\jirlm\Documents\홈페이지\benefits.html
 - GitHub 저장소 이름: `silvermedical-homepage`
 - 공개 주소: `https://silvermedical.kr/`
 
+### 하모니카 서버에서 Docker로 실행
+
+프로젝트 폴더에서 아래 명령을 실행하면 `nginx:alpine` 컨테이너가 8080 포트로 시작됩니다.
+
+```bash
+docker compose up -d --build
+docker compose ps
+curl -I http://127.0.0.1:8080
+```
+
+- 컨테이너 이름: `silvermedical-homepage`
+- 내부망 접속 주소: `http://192.168.30.2:8080`
+- 재부팅 후 자동 실행: `restart: unless-stopped`
+
 ## 폴더 구조
 
 ```text

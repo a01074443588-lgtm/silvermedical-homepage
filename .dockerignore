@@ -1,0 +1,12 @@
+.git
+.gitignore
+.preview
+.playwright-cli
+output
+scripts
+tmp
+README.md
+CNAME
+Dockerfile*
+compose*.yaml
+docker-compose*.yml
