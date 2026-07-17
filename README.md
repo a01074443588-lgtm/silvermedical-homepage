@@ -4,6 +4,8 @@
 
 요양원, 주간보호, 방문요양, 방문목욕, 단기보호, 통합재가 서비스를 보호자가 이해하기 쉽도록 구성했고, 메뉴별 상세 페이지와 `benefits.html` 급여비용 계산기를 함께 제공합니다.
 
+하모니카 서버에서는 Django 기반 비공개 1:1 상담 접수함을 함께 실행합니다. 상담 글목록은 공개하지 않으며 직원 관리 화면에서만 전체 접수 내용을 확인합니다.
+
 ## 로컬에서 여는 방법
 
 Windows 파일 탐색기에서 아래 파일을 더블클릭하면 바로 확인할 수 있습니다.
@@ -29,14 +31,22 @@ C:\Users\jirlm\Documents\홈페이지\benefits.html
 프로젝트 폴더에서 아래 명령을 실행하면 `nginx:alpine` 컨테이너가 8080 포트로 시작됩니다.
 
 ```bash
+export DJANGO_SECRET_KEY="$(cat /home/silverhome/.config/silvermedical/django_secret_key)"
 docker compose up -d --build
 docker compose ps
 curl -I http://127.0.0.1:8080
 ```
 
 - 컨테이너 이름: `silvermedical-homepage`
+- 상담 컨테이너 이름: `silvermedical-consultation`
 - 내부망 접속 주소: `http://192.168.30.2:8080`
+- 비공개 상담 접수: `http://192.168.30.2:8080/consult/`
+- 직원 관리 화면: `http://192.168.30.2:8081/staff/` (별도 내부망 전용 포트)
+
+공개 홈페이지 포트 `8080`에서는 `/staff/`가 열리지 않습니다. 향후 Cloudflare Tunnel은 `8080`만 연결하고, 직원 관리 포트 `8081`은 내부망에서만 사용합니다.
 - 재부팅 후 자동 실행: `restart: unless-stopped`
+
+`DJANGO_SECRET_KEY`는 저장소에 기록하지 않습니다. 서버의 `/home/silverhome/.config/silvermedical/django_secret_key` 파일에만 보관하며 파일 권한은 소유자 읽기 전용으로 설정합니다.
 
 ## 폴더 구조
 

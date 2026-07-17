@@ -1,10 +1,16 @@
 .git
 .gitignore
+.env
+.env.*
 .preview
 .playwright-cli
 output
 scripts
 tmp
+__pycache__
+*.py[cod]
+*.sqlite3
+backend/staticfiles
 README.md
 CNAME
 Dockerfile*

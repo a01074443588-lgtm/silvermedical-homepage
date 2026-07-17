@@ -1,2 +1,7 @@
 .preview/
-
+.env
+.env.*
+__pycache__/
+*.py[cod]
+*.sqlite3
+backend/staticfiles/

@@ -4,6 +4,34 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: silvermedical-homepage
+    depends_on:
+      consultation:
+        condition: service_healthy
     ports:
-      - "8080:80"
+      - "${HOMEPAGE_PORT:-8080}:80"
+      - "${STAFF_PORT:-8081}:8081"
     restart: unless-stopped
+  consultation:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: silvermedical-consultation
+    environment:
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}"
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-127.0.0.1,localhost,192.168.30.2}"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "${DJANGO_CSRF_TRUSTED_ORIGINS:-}"
+      DJANGO_SECURE_COOKIES: "${DJANGO_SECURE_COOKIES:-false}"
+      CONSULTATION_RETENTION_DAYS: "${CONSULTATION_RETENTION_DAYS:-365}"
+    volumes:
+      - consultation_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  consultation_data:

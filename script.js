@@ -38,6 +38,21 @@ document.querySelectorAll(".js-smart-contact").forEach((link) => {
   });
 });
 
+const consultationEntries = document.querySelectorAll(".consultation-entry");
+if (consultationEntries.length) {
+  fetch("/consult/health/", {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  })
+    .then((response) => {
+      if (!response.ok) return;
+      consultationEntries.forEach((entry) => entry.removeAttribute("hidden"));
+    })
+    .catch(() => {
+      // 전화와 카카오 상담은 상담 서버 상태와 관계없이 계속 제공됩니다.
+    });
+}
+
 document.querySelectorAll(".back-to-top").forEach((button) => {
   button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 });

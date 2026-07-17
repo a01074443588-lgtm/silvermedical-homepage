@@ -1,0 +1,31 @@
+{% extends "consultations/base.html" %}
+
+{% block title %}상담 접수 완료 | 실버메디컬복지센터{% endblock %}
+
+{% block content %}
+  <section class="success-panel">
+    <div class="success-mark" aria-hidden="true">✓</div>
+    <p class="eyebrow">상담 접수 완료</p>
+    <h1>
+      <span>상담 내용이 안전하게</span>
+      <span>접수되었습니다</span>
+    </h1>
+    <p>담당자가 내용을 확인한 뒤 남겨주신 연락처로 안내드리겠습니다.</p>
+
+    <dl class="receipt-summary">
+      <div><dt>접수번호</dt><dd>{{ receipt.reference_code }}</dd></div>
+      <div><dt>상담 종류</dt><dd>{{ receipt.category }}</dd></div>
+      <div><dt>연락 희망 시간</dt><dd>{{ receipt.preferred_contact_time }}</dd></div>
+    </dl>
+
+    <div class="success-notice">
+      <strong>접수번호를 보관해 주세요</strong>
+      <p>전화 상담 시 접수번호를 말씀해 주시면 내용을 빠르게 확인할 수 있습니다.</p>
+    </div>
+
+    <div class="success-actions">
+      <a class="primary-action" href="/index.html">홈으로 돌아가기</a>
+      <a class="secondary-action" href="/contact.html">다른 상담 방법 보기</a>
+    </div>
+  </section>
+{% endblock %}

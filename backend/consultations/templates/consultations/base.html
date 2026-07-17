@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}1:1 상담 | 실버메디컬복지센터{% endblock %}</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/consult.css?v=20260717-2">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 바로가기</a>
+  <header class="consult-header">
+    <a class="consult-brand" href="/index.html" aria-label="실버메디컬복지센터 홈">
+      <img src="/assets/images/logo.png" alt="">
+      <span>실버메디컬복지센터</span>
+    </a>
+    <nav aria-label="상담 페이지 메뉴">
+      <a href="/services.html">서비스</a>
+      <a href="/benefits.html">급여비용</a>
+      <a href="/contact.html">상담 안내</a>
+      <a href="/location.html">오시는 길</a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="consult-footer">
+    <div>
+      <strong>실버메디컬복지센터</strong>
+      <p>충북 청주시 서원구 구룡산로 375</p>
+    </div>
+    <div>
+      <p>대표전화 043-298-8588</p>
+      <p>이메일 sil3307@naver.com</p>
+    </div>
+  </footer>
+</body>
+</html>
