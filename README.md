@@ -48,6 +48,21 @@ curl -I http://127.0.0.1:8080
 
 `DJANGO_SECRET_KEY`는 저장소에 기록하지 않습니다. 서버의 `/home/silverhome/.config/silvermedical/django_secret_key` 파일에만 보관하며 파일 권한은 소유자 읽기 전용으로 설정합니다.
 
+## Cloudflare Tunnel 운영
+
+공개 도메인은 `compose.tunnel.yaml`을 추가로 사용합니다. Tunnel 토큰은 GitHub나 Compose 파일에 적지 않고 서버의 `/home/silverhome/.config/silvermedical/cloudflared-token`에 권한 `600`으로 보관합니다.
+
+```bash
+export DJANGO_SECRET_KEY="$(cat /home/silverhome/.config/silvermedical/django_secret_key)"
+export DJANGO_ALLOWED_HOSTS="silvermedical.kr,www.silvermedical.kr,192.168.30.2,127.0.0.1,localhost"
+export DJANGO_CSRF_TRUSTED_ORIGINS="https://silvermedical.kr,https://www.silvermedical.kr"
+export DJANGO_SECURE_COOKIES="true"
+
+docker compose -f compose.yaml -f compose.tunnel.yaml up -d --build
+```
+
+Cloudflare Tunnel의 공개 호스트 서비스 주소는 `http://homepage:80`으로 설정합니다. 직원 관리 포트 `8081`은 Tunnel에 등록하지 않으며 내부망에서만 사용합니다.
+
 ## 폴더 구조
 
 ```text

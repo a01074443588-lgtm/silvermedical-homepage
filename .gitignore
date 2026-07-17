@@ -1,6 +1,8 @@
 .preview/
 .env
 .env.*
+runtime.env
+*cloudflared-token*
 __pycache__/
 *.py[cod]
 *.sqlite3

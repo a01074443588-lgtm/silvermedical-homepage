@@ -1,0 +1,26 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: silvermedical-tunnel
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token-file
+      - /run/secrets/cloudflared-token
+    depends_on:
+      homepage:
+        condition: service_healthy
+    volumes:
+      - type: bind
+        source: "${CLOUDFLARED_TOKEN_FILE:-/home/silverhome/.config/silvermedical/cloudflared-token}"
+        target: /run/secrets/cloudflared-token
+        read_only: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
