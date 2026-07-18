@@ -235,6 +235,13 @@ class NotificationApiTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/staff/login/", response.url)
 
+    def test_admin_header_links_to_notification_dashboard(self):
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("staff_notifications:dashboard"))
+        self.assertContains(response, "내 알림 설정")
+
     def test_push_subscription_is_stored_per_device(self):
         response = self.client.post(
             reverse("staff_notifications:push_subscribe"),
