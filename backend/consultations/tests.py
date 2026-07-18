@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth import SESSION_KEY
 from django.test import TestCase
 from django.urls import reverse
 
@@ -82,3 +83,51 @@ class ConsultationViewTests(TestCase):
         response = self.client.get(reverse("admin:consultations_consultation_changelist"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "상담 접수함")
+
+
+class StaffSessionSafetyTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username="session-test",
+            email="session-test@example.com",
+            password="A-long-test-password-2026",
+        )
+
+    def test_wrong_password_does_not_create_an_authenticated_session(self):
+        response = self.client.post(
+            reverse("admin:login"),
+            {
+                "username": self.user.username,
+                "password": "wrong-password",
+                "next": reverse("admin:index"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(SESSION_KEY, self.client.session)
+
+    def test_stale_login_form_redirects_when_session_is_already_authenticated(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("admin:login"),
+            {
+                "username": self.user.username,
+                "password": "wrong-password",
+                "next": reverse("admin:index"),
+            },
+        )
+
+        self.assertRedirects(response, reverse("admin:index"))
+        self.assertIn(SESSION_KEY, self.client.session)
+
+    def test_staff_pages_are_never_cached(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertIn("private", response["Cache-Control"])
+        self.assertEqual(response["Pragma"], "no-cache")
+        self.assertEqual(response["Expires"], "0")
