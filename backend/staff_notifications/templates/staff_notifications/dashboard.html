@@ -1,0 +1,134 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <link rel="manifest" href="{% url 'notification_manifest' %}">
+  <link rel="apple-touch-icon" href="{% static 'staff_notifications/logo.png' %}">
+  <meta name="theme-color" content="#246b43">
+  <link rel="stylesheet" href="{% static 'staff_notifications/notifications.css' %}">
+  <script defer src="{% static 'staff_notifications/notifications.js' %}"></script>
+{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs"><a href="{% url 'admin:index' %}">홈</a> &rsaquo; 내 알림 설정</div>
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+  <div
+    class="notification-console"
+    data-notification-console
+    data-status-url="{% url 'staff_notifications:status' %}"
+    data-config-url="{% url 'staff_notifications:push_config' %}"
+    data-subscribe-url="{% url 'staff_notifications:push_subscribe' %}"
+    data-unsubscribe-url="{% url 'staff_notifications:push_unsubscribe' %}"
+    data-test-url="{% url 'staff_notifications:test_notification' %}"
+  >
+    <form class="notification-csrf" aria-hidden="true">{% csrf_token %}</form>
+
+    <header class="notification-heading">
+      <div>
+        <p class="notification-eyebrow">{{ profile.display_name }} · {{ profile.role_title|default:"직원" }}</p>
+        <h1>내 알림 설정</h1>
+        <p>상담 내용은 관리자 화면에서만 확인하고, 잠금화면에는 마스킹된 최소 정보만 표시합니다.</p>
+      </div>
+      <a class="button" href="{% url 'admin:staff_notifications_staffnotificationprofile_change' profile.pk %}">수신 상담 유형 설정</a>
+    </header>
+
+    {% if messages %}
+      <ul class="messagelist">
+        {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+
+    <section class="notification-status-strip" aria-label="현재 알림 상태">
+      <div><span>웹 푸시</span><strong data-push-status>확인 중</strong></div>
+      <div><span>등록 기기</span><strong>{{ profile.active_push_device_count }}대</strong></div>
+      <div><span>카카오톡</span><strong>{% if kakao_connection and kakao_connection.is_active %}연결됨{% else %}연결 안 됨{% endif %}</strong></div>
+      <div><span>미확인 재알림</span><strong>{% if profile.reminder_enabled %}사용{% else %}사용 안 함{% endif %}</strong></div>
+    </section>
+
+    <div class="notification-grid">
+      <section class="notification-panel" aria-labelledby="push-heading">
+        <div class="panel-heading">
+          <div>
+            <span class="channel-label">기본 알림</span>
+            <h2 id="push-heading">웹 푸시</h2>
+          </div>
+          <span class="status-badge" data-permission-badge>권한 확인 중</span>
+        </div>
+        <p>PC Chrome·Edge와 안드로이드 Chrome에서 상담 접수 알림을 받을 수 있습니다.</p>
+
+        {% if not webpush_configured %}
+          <div class="notification-warning">서버 푸시 키 설정이 아직 완료되지 않았습니다.</div>
+        {% endif %}
+
+        <div class="notification-actions">
+          <button type="button" class="button default" data-enable-push>이 기기에서 알림 받기</button>
+          <button type="button" class="button" data-test-push>시험 알림 보내기</button>
+          <button type="button" class="button" data-disable-push>현재 기기 알림 해제</button>
+        </div>
+        <p class="action-result" data-action-result role="status" aria-live="polite"></p>
+        <a class="inline-guide" href="{% url 'staff_notifications:iphone_guide' %}">아이폰 홈 화면 설치 방법</a>
+      </section>
+
+      <section class="notification-panel" aria-labelledby="kakao-heading">
+        <div class="panel-heading">
+          <div>
+            <span class="channel-label">보조 알림</span>
+            <h2 id="kakao-heading">카카오톡 나에게 보내기</h2>
+          </div>
+          <span class="status-badge {% if kakao_connection and kakao_connection.is_active %}is-active{% endif %}">
+            {% if kakao_connection and kakao_connection.is_active %}연결됨{% elif kakao_connection and kakao_connection.reconnect_required %}재연결 필요{% else %}연결 안 됨{% endif %}
+          </span>
+        </div>
+        <p>각 직원이 본인 카카오 계정을 직접 연결하며, 다른 직원에게 대신 보내지 않습니다.</p>
+
+        {% if not kakao_configured %}
+          <div class="notification-warning">카카오 개발자 앱 키 설정 후 연결할 수 있습니다.</div>
+        {% endif %}
+
+        <div class="notification-actions">
+          {% if kakao_configured %}
+            <a class="button default" href="{% url 'staff_notifications:kakao_connect' %}">카카오톡 알림 연결</a>
+          {% endif %}
+          <button type="button" class="button" data-test-kakao {% if not kakao_connection or not kakao_connection.is_active %}disabled{% endif %}>시험 메시지 보내기</button>
+          {% if kakao_connection and kakao_connection.is_active %}
+            <form method="post" action="{% url 'staff_notifications:kakao_disconnect' %}">
+              {% csrf_token %}<button class="button" type="submit">연결 해제</button>
+            </form>
+          {% endif %}
+        </div>
+        {% if kakao_connection and kakao_connection.access_token_expires_at %}
+          <p class="connection-detail">토큰 자동 갱신 사용 · 현재 액세스 토큰 만료 {{ kakao_connection.access_token_expires_at|date:"Y-m-d H:i" }}</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <section class="device-section" aria-labelledby="device-heading">
+      <div class="section-heading">
+        <div><span class="channel-label">기기 관리</span><h2 id="device-heading">등록된 웹 푸시 기기</h2></div>
+        <strong>{{ profile.active_push_device_count }}대</strong>
+      </div>
+      {% if push_subscriptions %}
+        <div class="device-list">
+          {% for subscription in push_subscriptions %}
+            <article class="device-row">
+              <div>
+                <strong>{{ subscription.device_name|default:"알림 기기" }}</strong>
+                <span>{{ subscription.browser|default:"브라우저 확인 필요" }} · 마지막 연결 {{ subscription.last_used_at|date:"Y-m-d H:i" }}</span>
+              </div>
+              <form method="post" action="{% url 'staff_notifications:push_device_remove' subscription.pk %}">
+                {% csrf_token %}<button class="button" type="submit">기기 삭제</button>
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-state">등록된 기기가 없습니다. 위의 ‘이 기기에서 알림 받기’를 눌러 등록해 주세요.</p>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

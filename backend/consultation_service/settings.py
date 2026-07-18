@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "benefits.apps.BenefitsConfig",
     "consultations.apps.ConsultationsConfig",
+    "staff_notifications.apps.StaffNotificationsConfig",
 ]
 
 MIDDLEWARE = [
@@ -121,3 +122,21 @@ X_FRAME_OPTIONS = "DENY"
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 128 * 1024
 CONSULTATION_RETENTION_DAYS = int(os.getenv("CONSULTATION_RETENTION_DAYS", "365"))
+
+WEBPUSH_VAPID_PRIVATE_KEY = os.getenv("WEBPUSH_VAPID_PRIVATE_KEY", "").strip()
+WEBPUSH_VAPID_PUBLIC_KEY = os.getenv("WEBPUSH_VAPID_PUBLIC_KEY", "").strip()
+WEBPUSH_VAPID_SUBJECT = os.getenv(
+    "WEBPUSH_VAPID_SUBJECT",
+    "mailto:sil3307@naver.com",
+).strip()
+NOTIFICATION_TOKEN_ENCRYPTION_KEY = os.getenv(
+    "NOTIFICATION_TOKEN_ENCRYPTION_KEY",
+    "",
+).strip()
+
+KAKAO_REST_API_KEY = os.getenv("KAKAO_REST_API_KEY", "").strip()
+KAKAO_CLIENT_SECRET = os.getenv("KAKAO_CLIENT_SECRET", "").strip()
+KAKAO_REDIRECT_URI = os.getenv(
+    "KAKAO_REDIRECT_URI",
+    "https://staff.silvermedical.kr/staff/notifications/kakao/callback/",
+).strip()

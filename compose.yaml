@@ -22,6 +22,9 @@ services:
       DJANGO_CSRF_TRUSTED_ORIGINS: "${DJANGO_CSRF_TRUSTED_ORIGINS:-}"
       DJANGO_SECURE_COOKIES: "${DJANGO_SECURE_COOKIES:-false}"
       CONSULTATION_RETENTION_DAYS: "${CONSULTATION_RETENTION_DAYS:-365}"
+    env_file:
+      - path: "${NOTIFICATION_ENV_FILE:-/home/silverhome/.config/silvermedical/notifications.env}"
+        required: false
     volumes:
       - consultation_data:/data
     read_only: true
@@ -31,6 +34,36 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    restart: unless-stopped
+  notification-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: silvermedical-notification-worker
+    command: ["python", "manage.py", "run_notification_worker"]
+    depends_on:
+      consultation:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}"
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-127.0.0.1,localhost,192.168.30.2}"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "${DJANGO_CSRF_TRUSTED_ORIGINS:-}"
+      DJANGO_SECURE_COOKIES: "${DJANGO_SECURE_COOKIES:-false}"
+      CONSULTATION_RETENTION_DAYS: "${CONSULTATION_RETENTION_DAYS:-365}"
+    env_file:
+      - path: "${NOTIFICATION_ENV_FILE:-/home/silverhome/.config/silvermedical/notifications.env}"
+        required: false
+    volumes:
+      - consultation_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true
     restart: unless-stopped
 
 volumes:

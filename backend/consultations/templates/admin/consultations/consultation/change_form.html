@@ -1,0 +1,18 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+  {{ block.super }}
+  {% if original %}
+    <div class="submit-row">
+      {% if original.status == "new" %}
+        <button type="submit" formaction="{% url 'admin:consultation_acknowledge' original.pk %}" formmethod="post">접수 확인</button>
+      {% endif %}
+      {% if not original.contact_completed_at %}
+        <button type="submit" formaction="{% url 'admin:consultation_contact_complete' original.pk %}" formmethod="post">연락 완료</button>
+      {% endif %}
+      {% if original.status != "closed" %}
+        <button type="submit" formaction="{% url 'admin:consultation_close' original.pk %}" formmethod="post">상담 종결</button>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

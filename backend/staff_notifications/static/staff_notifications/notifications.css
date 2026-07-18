@@ -1,0 +1,136 @@
+.notification-console {
+  --notify-green: #246b43;
+  --notify-green-soft: #eaf4ed;
+  --notify-ink: #17241d;
+  --notify-muted: #5b6b62;
+  --notify-border: #d7e1da;
+  max-width: 1120px;
+  color: var(--notify-ink);
+}
+
+.notification-heading,
+.section-heading,
+.panel-heading,
+.device-row,
+.notification-actions {
+  display: flex;
+  align-items: center;
+}
+
+.notification-heading {
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.notification-heading h1,
+.notification-panel h2,
+.device-section h2 {
+  margin: 0;
+  color: var(--notify-ink);
+}
+
+.notification-heading p:not(.notification-eyebrow),
+.notification-panel > p,
+.connection-detail,
+.device-row span,
+.guide-steps p {
+  color: var(--notify-muted);
+}
+
+.notification-eyebrow,
+.channel-label {
+  display: block;
+  margin: 0 0 6px;
+  color: var(--notify-green);
+  font-weight: 700;
+}
+
+.notification-status-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--notify-border);
+  background: #fff;
+  margin-bottom: 20px;
+}
+
+.notification-status-strip div {
+  padding: 16px 18px;
+  border-right: 1px solid var(--notify-border);
+}
+
+.notification-status-strip div:last-child { border-right: 0; }
+.notification-status-strip span { display: block; color: var(--notify-muted); font-size: 12px; }
+.notification-status-strip strong { display: block; margin-top: 5px; font-size: 16px; }
+
+.notification-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.notification-panel,
+.device-section,
+.guide-steps {
+  border: 1px solid var(--notify-border);
+  background: #fff;
+  padding: 24px;
+}
+
+.panel-heading,
+.section-heading { justify-content: space-between; gap: 16px; }
+.notification-actions { flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.notification-actions form { margin: 0; }
+
+.status-badge {
+  padding: 5px 9px;
+  border: 1px solid #cbd5ce;
+  background: #f4f6f5;
+  color: #526159;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-badge.is-active { border-color: #9ac8aa; background: var(--notify-green-soft); color: var(--notify-green); }
+.notification-warning { margin-top: 18px; padding: 12px 14px; border-left: 3px solid #bd8520; background: #fff8e9; }
+.action-result { min-height: 22px; margin: 14px 0 0; color: var(--notify-green); font-weight: 700; }
+.action-result.is-error { color: #a12b2b; }
+.inline-guide { display: inline-block; margin-top: 10px; }
+
+.device-section { margin-top: 20px; }
+.device-list { margin-top: 16px; border-top: 1px solid var(--notify-border); }
+.device-row { justify-content: space-between; gap: 16px; padding: 15px 0; border-bottom: 1px solid var(--notify-border); }
+.device-row strong,
+.device-row span { display: block; }
+.device-row span { margin-top: 4px; font-size: 12px; }
+.empty-state { padding: 20px 0 4px; color: var(--notify-muted); }
+.notification-csrf { display: none; }
+
+.guide-page { max-width: 900px; }
+.guide-steps { list-style: none; margin: 0; padding: 0; }
+.guide-steps li { display: grid; grid-template-columns: 42px 1fr; gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--notify-border); }
+.guide-steps li:last-child { border-bottom: 0; }
+.guide-steps li > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--notify-green); color: #fff; font-weight: 700; }
+.guide-steps strong { font-size: 16px; }
+.guide-steps p { margin: 5px 0 0; }
+
+@media (max-width: 800px) {
+  .notification-heading { align-items: flex-start; flex-direction: column; }
+  .notification-grid { grid-template-columns: 1fr; }
+  .notification-status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .notification-status-strip div:nth-child(2) { border-right: 0; }
+  .notification-status-strip div:nth-child(-n+2) { border-bottom: 1px solid var(--notify-border); }
+  .device-row { align-items: flex-start; flex-direction: column; }
+}
+
+html[data-theme="dark"] .notification-heading h1,
+html[data-theme="dark"] .notification-heading p:not(.notification-eyebrow) {
+  color: #f2f7f4;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] .notification-heading h1,
+  html[data-theme="auto"] .notification-heading p:not(.notification-eyebrow) {
+    color: #f2f7f4;
+  }
+}

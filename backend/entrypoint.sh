@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+fi
+
 python manage.py migrate --noinput
 
 exec gunicorn consultation_service.wsgi:application \

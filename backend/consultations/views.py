@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -5,6 +6,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
 
 from .forms import ConsultationForm
+from staff_notifications.services import safe_enqueue_consultation_notifications
 
 
 def no_store(response):
@@ -29,6 +31,11 @@ def create_consultation(request):
         consultation = form.save(commit=False)
         consultation.privacy_agreed_at = timezone.now()
         consultation.save()
+        transaction.on_commit(
+            lambda consultation_id=consultation.pk: safe_enqueue_consultation_notifications(
+                consultation_id
+            )
+        )
 
         request.session.cycle_key()
         request.session["consultation_receipt"] = {
