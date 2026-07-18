@@ -10,12 +10,45 @@ MONEY_VALIDATORS = [MinValueValidator(1)]
 PERCENT_VALIDATORS = [MinValueValidator(0), MaxValueValidator(100)]
 
 
+class FacilityFeeSettings(models.Model):
+    meal_price = models.PositiveIntegerField(
+        "식사 1끼",
+        validators=MONEY_VALIDATORS,
+        help_text="현재 기관에서 적용하는 식사 1끼 금액을 입력해 주세요.",
+    )
+    snack_price = models.PositiveIntegerField(
+        "간식 1회",
+        validators=MONEY_VALIDATORS,
+        help_text="현재 기관에서 적용하는 간식 1회 금액을 입력해 주세요.",
+    )
+    updated_at = models.DateTimeField("수정 시각", auto_now=True)
+
+    class Meta:
+        verbose_name = "현재 식사·간식비 설정"
+        verbose_name_plural = "현재 식사·간식비 설정"
+
+    @classmethod
+    def current(cls):
+        settings, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={"meal_price": 3500, "snack_price": 1000},
+        )
+        return settings
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return "현재 식사·간식비"
+
+
 class BenefitSchedule(models.Model):
     year = models.PositiveSmallIntegerField(
         "기준연도",
         unique=True,
         validators=[MinValueValidator(2020), MaxValueValidator(2100)],
-        help_text="기존 연도를 연 뒤 '새 항목으로 저장'을 사용하면 다음 연도 자료를 쉽게 만들 수 있습니다.",
+        help_text="기존 연도를 연 뒤 화면 아래의 '새로 저장'을 사용하면 다음 연도 자료를 쉽게 만들 수 있습니다.",
     )
     effective_date = models.DateField("적용 시작일")
     is_published = models.BooleanField(
@@ -28,9 +61,6 @@ class BenefitSchedule(models.Model):
         blank=True,
         help_text="공단 고시명, 확인일 또는 내부 검토 내용을 기록해 주세요.",
     )
-
-    meal_price = models.PositiveIntegerField("식사 1끼", validators=MONEY_VALIDATORS)
-    snack_price = models.PositiveIntegerField("간식 1회", validators=MONEY_VALIDATORS)
 
     facility_standard_percent = models.DecimalField(
         "시설 일반 본인부담률(%)", max_digits=5, decimal_places=2, validators=PERCENT_VALIDATORS
@@ -106,8 +136,8 @@ class BenefitSchedule(models.Model):
     updated_at = models.DateTimeField("수정 시각", auto_now=True)
 
     class Meta:
-        verbose_name = "연도별 급여비용 설정"
-        verbose_name_plural = "연도별 급여비용 설정"
+        verbose_name = "연도별 장기요양 급여수가"
+        verbose_name_plural = "연도별 장기요양 급여수가"
         ordering = ["-year"]
 
     def clean(self):
@@ -130,7 +160,6 @@ class BenefitSchedule(models.Model):
             "year": str(self.year),
             "effectiveDate": self.effective_date.isoformat(),
             "isFuture": self.effective_date > today,
-            "food": {"meal": self.meal_price, "snack": self.snack_price},
             "discounts": {
                 "facility": [
                     {"key": "standard", "label": "일반", "rate": self._rate(self.facility_standard_percent)},

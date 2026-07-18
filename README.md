@@ -43,9 +43,10 @@ curl -I http://127.0.0.1:8080
 - 상담 컨테이너 이름: `silvermedical-consultation`
 - 내부망 접속 주소: `http://192.168.30.2:8080`
 - 비공개 상담 접수: `http://192.168.30.2:8080/consult/`
-- 직원 관리 화면: `http://192.168.30.2:8081/staff/` (별도 내부망 전용 포트)
+- 직원 관리 화면: `http://192.168.30.2:8081/staff/` (내부망 비상 접속 주소)
+- 직원 관리 HTTPS 주소: `https://staff.silvermedical.kr/staff/` (Cloudflare Access 설정 후 사용)
 
-공개 홈페이지 포트 `8080`에서는 `/staff/`가 열리지 않습니다. 향후 Cloudflare Tunnel은 `8080`만 연결하고, 직원 관리 포트 `8081`은 내부망에서만 사용합니다.
+공개 홈페이지 포트 `8080`에서는 `/staff/`가 열리지 않습니다. 직원 관리 포트 `8081`은 내부망에서 직접 사용하거나, Cloudflare Access로 보호된 `staff.silvermedical.kr`을 통해서만 사용합니다.
 - 재부팅 후 자동 실행: `restart: unless-stopped`
 
 `DJANGO_SECRET_KEY`는 저장소에 기록하지 않습니다. 서버의 `/home/silverhome/.config/silvermedical/django_secret_key` 파일에만 보관하며 파일 권한은 소유자 읽기 전용으로 설정합니다.
@@ -56,31 +57,38 @@ curl -I http://127.0.0.1:8080
 
 ```bash
 export DJANGO_SECRET_KEY="$(cat /home/silverhome/.config/silvermedical/django_secret_key)"
-export DJANGO_ALLOWED_HOSTS="silvermedical.kr,www.silvermedical.kr,192.168.30.2,127.0.0.1,localhost"
-export DJANGO_CSRF_TRUSTED_ORIGINS="https://silvermedical.kr,https://www.silvermedical.kr"
+export DJANGO_ALLOWED_HOSTS="silvermedical.kr,www.silvermedical.kr,staff.silvermedical.kr,192.168.30.2,127.0.0.1,localhost"
+export DJANGO_CSRF_TRUSTED_ORIGINS="https://silvermedical.kr,https://www.silvermedical.kr,https://staff.silvermedical.kr"
 export DJANGO_SECURE_COOKIES="true"
 export CLOUDFLARED_RUN_AS="$(id -u):$(id -g)"
 
 docker compose -f compose.yaml -f compose.tunnel.yaml up -d --build
 ```
 
-Cloudflare Tunnel의 공개 호스트 서비스 주소는 `http://homepage:80`으로 설정합니다. 직원 관리 포트 `8081`은 Tunnel에 등록하지 않으며 내부망에서만 사용합니다.
+Cloudflare Tunnel의 홈페이지 서비스 주소는 `http://homepage:80`입니다. 직원 관리 HTTPS 주소는 별도 호스트 `staff.silvermedical.kr`을 `http://homepage:8081`로 연결하고, Cloudflare Access의 허용 이메일 정책을 먼저 적용한 뒤 사용합니다. Access 인증 정보가 없는 외부 관리자 요청은 nginx에서도 `403`으로 차단합니다.
 
 ## 상담 접수와 직원 관리
 
 - 보호자 상담 접수: `https://silvermedical.kr/consult/`
-- 직원 관리 화면: `http://192.168.30.2:8081/staff/`
+- 직원 관리 화면: `https://staff.silvermedical.kr/staff/`
+- 내부망 비상 접속: `http://192.168.30.2:8081/staff/`
 - 직원 관리 화면은 공개 홈페이지 메뉴에 넣지 않고, 내부 업무용 즐겨찾기로 사용합니다.
 - 상담 내용이 10자보다 짧으면 입력칸 아래에 이유와 최소 글자 수를 표시합니다.
 - 접수 내용은 공개 게시판에 노출되지 않으며 직원 관리 화면에서만 확인합니다.
 - 카카오톡 자동 알림을 연결할 때는 보호자 이름, 연락처, 상담 원문을 보내지 말고 새 접수 여부와 접수번호만 보내는 방식을 사용합니다.
 
-## 연도별 급여비용 설정 방법
+## 식사·간식비 설정 방법
 
-1. 내부망에서 직원 관리 화면에 로그인합니다.
-2. `급여비용 관리`의 `연도별 급여비용 설정`을 엽니다.
+1. 직원 관리 화면에서 `현재 식사·간식비 설정`을 엽니다.
+2. 현재 기관에서 적용하는 식사 1끼와 간식 1회 금액을 입력하고 저장합니다.
+3. 이 금액은 기준연도와 관계없이 계산기의 모든 연도에 공통 적용됩니다.
+
+## 연도별 급여수가 설정 방법
+
+1. 직원 관리 HTTPS 주소에 로그인합니다. 내부망에서는 비상 접속 주소도 사용할 수 있습니다.
+2. `급여비용 계산기 설정`의 `연도별 장기요양 급여수가`를 엽니다.
 3. 새 연도는 직전 연도 자료를 열고 화면 아래의 `새로 저장`을 누른 뒤 기준연도와 적용 시작일을 변경합니다.
-4. 공단 고시 수가, 감경률, 시설 식사비·간식비를 확인해 입력합니다.
+4. 공단 고시의 시설급여, 주야간보호, 방문요양 수가와 재가 월 한도액·감경률을 입력합니다.
 5. 검토가 끝난 자료만 `홈페이지 공개`를 선택해 저장합니다.
 6. 미래 연도 자료는 계산기에서 `(예정)`으로 표시되며, 적용일 전에는 현재 연도가 기본 선택됩니다.
 

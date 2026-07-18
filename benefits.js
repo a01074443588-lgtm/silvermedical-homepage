@@ -49,7 +49,6 @@ const FALLBACK_SCHEDULE = {
   year: YEAR,
   effectiveDate: "2026-01-01",
   isFuture: false,
-  food: FOOD,
   regularCare: REGULAR_CARE,
   familyCare: FAMILY_CARE,
   discounts: DISCOUNTS,
@@ -121,7 +120,6 @@ function rateText(rate) {
 
 function applySchedule(schedule) {
   YEAR = schedule.year;
-  FOOD = schedule.food;
   REGULAR_CARE = schedule.regularCare;
   FAMILY_CARE = schedule.familyCare;
   DISCOUNTS = schedule.discounts;
@@ -164,6 +162,10 @@ async function loadSchedules() {
     if (!Array.isArray(payload.schedules) || payload.schedules.length === 0) {
       throw new Error("공개된 연도 자료가 없습니다.");
     }
+    if (!payload.food || !Number(payload.food.meal) || !Number(payload.food.snack)) {
+      throw new Error("식사·간식비 설정이 올바르지 않습니다.");
+    }
+    FOOD = payload.food;
     schedules = payload.schedules;
   } catch (error) {
     console.error("급여비용 설정을 불러오지 못했습니다.", error);
