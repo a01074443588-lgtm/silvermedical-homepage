@@ -261,6 +261,16 @@ label span {
   font-weight: 900;
 }
 
+.year-status {
+  min-height: 20px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.year-status.future { color: #8a4d00; }
+.year-status.error { color: #a33426; }
+
 select,
 input {
   width: 100%;

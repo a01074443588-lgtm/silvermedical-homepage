@@ -46,6 +46,8 @@ class ConsultationForm(forms.ModelForm):
             "message": forms.Textarea(
                 attrs={
                     "rows": 7,
+                    "minlength": "10",
+                    "maxlength": "2000",
                     "placeholder": "현재 가장 걱정되는 부분과 상담받고 싶은 내용을 적어주세요.",
                 }
             ),

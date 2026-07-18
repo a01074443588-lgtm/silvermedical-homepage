@@ -226,8 +226,28 @@ a { color: inherit; }
 }
 
 .field-help { margin-top: 6px; color: var(--consult-muted); font-size: 0.84rem; }
-.field-error { margin-top: 7px; color: #a33426; font-size: 0.9rem; font-weight: 700; }
-.form-alert { margin-bottom: 20px; padding: 14px; background: #fff0ed; color: #8a2f24; }
+.field-error,
+.client-field-error { margin-top: 7px; color: #9d2418; font-size: 0.92rem; font-weight: 800; }
+.form-alert {
+  margin-bottom: 24px;
+  padding: 18px 20px;
+  border: 2px solid #c84a38;
+  border-left-width: 7px;
+  background: #fff0ed;
+  color: #7b241b;
+}
+.form-alert strong { display: block; font-size: 1.12rem; }
+.form-alert p { margin: 6px 0 8px; }
+.form-alert ul { margin: 0; padding-left: 22px; }
+.form-alert a { color: inherit; font-weight: 800; }
+.form-alert:focus { outline: 3px solid rgba(157, 36, 24, 0.22); }
+.field-row.has-error input,
+.field-row.has-error select,
+.field-row.has-error textarea { border: 2px solid #c84a38; background: #fffafa; }
+.message-guide { display: flex; justify-content: space-between; gap: 16px; }
+.message-guide strong { color: var(--consult-green-dark); white-space: nowrap; }
+.message-guide.is-short,
+.message-guide.is-short strong { color: #9d2418; font-weight: 800; }
 
 .privacy-box {
   margin-top: 8px;
@@ -279,6 +299,7 @@ a { color: inherit; }
 
 .submit-button:hover,
 .submit-button:focus-visible { background: var(--consult-green-dark); }
+.submit-button:disabled { cursor: wait; opacity: 0.72; }
 .submit-note { margin: 12px 0 0; color: var(--consult-muted); text-align: center; font-size: 0.86rem; }
 
 .success-panel {

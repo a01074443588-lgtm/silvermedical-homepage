@@ -29,6 +29,11 @@ class ConsultationFormTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("privacy_agree", form.errors)
 
+    def test_message_must_contain_at_least_ten_characters(self):
+        form = ConsultationForm(data={**VALID_DATA, "message": "테스트"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("message", form.errors)
+
 
 class ConsultationViewTests(TestCase):
     def test_health_endpoint(self):
@@ -43,6 +48,16 @@ class ConsultationViewTests(TestCase):
         self.assertRegex(consultation.reference_code, r"^SM-\d{6}-[A-HJ-NP-Z2-9]{6}$")
         self.assertEqual(consultation.phone, "010-1234-5678")
         self.assertEqual(consultation.status, Consultation.Status.NEW)
+
+    def test_invalid_submission_shows_prominent_error_summary(self):
+        response = self.client.post(
+            reverse("consultations:create"),
+            {**VALID_DATA, "message": "테스트"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "입력 내용을 확인해 주세요")
+        self.assertContains(response, "상담 내용을 10자 이상 입력해 주세요")
+        self.assertFalse(Consultation.objects.exists())
 
     def test_honeypot_submission_is_not_saved(self):
         response = self.client.post(

@@ -1,23 +1,23 @@
 const MONEY = new Intl.NumberFormat("ko-KR");
 
-const YEAR = "2026";
-const FOOD = {
+let YEAR = "2026";
+let FOOD = {
   meal: 3500,
   snack: 1000
 };
 
-const REGULAR_CARE = {
+let REGULAR_CARE = {
   label: "일반요양",
   hourlyPay: 14000,
   defaultDays: 20
 };
 
-const FAMILY_CARE = {
+let FAMILY_CARE = {
   family60: { label: "가족 60분", hourlyPay: 21000, hours: 1, defaultDays: 20 },
   family90: { label: "가족 90분", hourlyPay: 19000, hours: 1.5, defaultDays: 31 }
 };
 
-const DISCOUNTS = {
+let DISCOUNTS = {
   facility: [
     { key: "standard", label: "일반", rate: 0.2 },
     { key: "facility40", label: "시설 40% 감경 (12%)", rate: 0.12 },
@@ -32,7 +32,7 @@ const DISCOUNTS = {
   ]
 };
 
-const DATA = {
+let DATA = {
   homeLimit: { 1: 2512900, 2: 2331200, 3: 1528200, 4: 1409700, 5: 1208900 },
   facility: { 1: 93070, 2: 86340, 3: 81540, 4: 81540, 5: 81540 },
   daycare: {
@@ -45,8 +45,27 @@ const DATA = {
   visit: { 30: 17450, 60: 25320, 90: 34120, 120: 43430, 150: 50640, 180: 57020, 210: 63530, 240: 70080 }
 };
 
+const FALLBACK_SCHEDULE = {
+  year: YEAR,
+  effectiveDate: "2026-01-01",
+  isFuture: false,
+  food: FOOD,
+  regularCare: REGULAR_CARE,
+  familyCare: FAMILY_CARE,
+  discounts: DISCOUNTS,
+  data: DATA
+};
+
+let schedules = [];
+
 const refs = {
   year: document.querySelector("#year"),
+  yearStatus: document.querySelector("#yearStatus"),
+  brandYear: document.querySelector("#brandYear"),
+  heroYear: document.querySelector("#heroYear"),
+  heroLead: document.querySelector("#heroLead"),
+  mealPrice: document.querySelector("#mealPrice"),
+  snackPrice: document.querySelector("#snackPrice"),
   serviceType: document.querySelector("#serviceType"),
   grade: document.querySelector("#grade"),
   discount: document.querySelector("#discount"),
@@ -98,6 +117,67 @@ function won(value) {
 
 function rateText(rate) {
   return `${Math.round(rate * 100)}%`;
+}
+
+function applySchedule(schedule) {
+  YEAR = schedule.year;
+  FOOD = schedule.food;
+  REGULAR_CARE = schedule.regularCare;
+  FAMILY_CARE = schedule.familyCare;
+  DISCOUNTS = schedule.discounts;
+  DATA = schedule.data;
+
+  refs.brandYear.textContent = `${YEAR}년 장기요양 급여비용 안내`;
+  refs.heroYear.textContent = `${YEAR}년 장기요양 안내`;
+  refs.heroLead.textContent = `시설급여, 주야간보호, 방문요양, 가족요양을 ${YEAR}년 기준으로 한눈에 확인합니다.`;
+  refs.mealPrice.textContent = won(FOOD.meal);
+  refs.snackPrice.textContent = won(FOOD.snack);
+  refs.yearStatus.textContent = schedule.isFuture
+    ? `${schedule.effectiveDate} 적용 예정 자료입니다.`
+    : `${schedule.effectiveDate} 적용 자료입니다.`;
+  refs.yearStatus.className = `year-status${schedule.isFuture ? " future" : ""}`;
+}
+
+function selectDefaultSchedule(items) {
+  const today = new Date().toISOString().slice(0, 10);
+  const active = items.filter((item) => item.effectiveDate <= today);
+  return active.at(-1) || items[0];
+}
+
+function populateYearOptions(items, selectedYear) {
+  refs.year.innerHTML = items.map((item) => {
+    const suffix = item.isFuture ? " (예정)" : "";
+    return `<option value="${item.year}">${item.year}년${suffix}</option>`;
+  }).join("");
+  refs.year.value = selectedYear;
+}
+
+async function loadSchedules() {
+  let usedFallback = false;
+  try {
+    const response = await fetch("/benefits-data/", {
+      cache: "no-store",
+      headers: { Accept: "application/json" }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (!Array.isArray(payload.schedules) || payload.schedules.length === 0) {
+      throw new Error("공개된 연도 자료가 없습니다.");
+    }
+    schedules = payload.schedules;
+  } catch (error) {
+    console.error("급여비용 설정을 불러오지 못했습니다.", error);
+    schedules = [FALLBACK_SCHEDULE];
+    usedFallback = true;
+  }
+
+  const selected = selectDefaultSchedule(schedules);
+  populateYearOptions(schedules, selected.year);
+  applySchedule(selected);
+  if (usedFallback) {
+    refs.yearStatus.textContent = "서버 설정을 불러오지 못해 2026년 기본자료를 표시합니다.";
+    refs.yearStatus.className = "year-status error";
+  }
 }
 
 function isHomeService(serviceType) {
@@ -222,6 +302,7 @@ function updateDiscountOptions() {
 
 function updateVisibility() {
   const serviceType = refs.serviceType.value;
+  const discounts = getDiscounts(serviceType);
   refs.timeBandWrap.classList.toggle("hidden", serviceType !== "daycare");
   refs.visitTimeWrap.classList.toggle("hidden", serviceType !== "visit");
   refs.mealCountWrap.classList.toggle("hidden", serviceType === "visit");
@@ -229,8 +310,8 @@ function updateVisibility() {
   refs.familyModeWrap.classList.toggle("hidden", serviceType !== "visit");
   refs.familySection.classList.toggle("hidden", serviceType !== "visit");
   refs.familyPayCard.classList.toggle("hidden", serviceType !== "visit");
-  refs.discountCol1.textContent = serviceType === "facility" ? "시설 40% (12%)" : "재가 40% (9%)";
-  refs.discountCol2.textContent = serviceType === "facility" ? "시설 60% (8%)" : "재가 60% (6%)";
+  refs.discountCol1.textContent = discounts[1].label;
+  refs.discountCol2.textContent = discounts[2].label;
   refs.daysLabel.textContent = serviceType === "visit"
     ? "방문횟수"
     : serviceType === "respite"
@@ -366,6 +447,15 @@ function renderMemo(serviceType, grade, result) {
 }
 
 function bindEvents() {
+  refs.year.addEventListener("change", () => {
+    const selected = schedules.find((item) => item.year === refs.year.value);
+    if (!selected) return;
+    applySchedule(selected);
+    updateDiscountOptions();
+    updateVisibility();
+    renderSummary();
+  });
+
   refs.serviceType.addEventListener("change", () => {
     setServiceDefaults();
     syncVisitTimeByGrade();
@@ -375,7 +465,6 @@ function bindEvents() {
   });
 
   [
-    refs.year,
     refs.grade,
     refs.discount,
     refs.timeBand,
@@ -412,9 +501,14 @@ function bindEvents() {
   refs.printBtn.addEventListener("click", () => window.print());
 }
 
-bindEvents();
-setServiceDefaults();
-syncVisitTimeByGrade();
-updateDiscountOptions();
-updateVisibility();
-renderSummary();
+async function initCalculator() {
+  await loadSchedules();
+  bindEvents();
+  setServiceDefaults();
+  syncVisitTimeByGrade();
+  updateDiscountOptions();
+  updateVisibility();
+  renderSummary();
+}
+
+initCalculator();
