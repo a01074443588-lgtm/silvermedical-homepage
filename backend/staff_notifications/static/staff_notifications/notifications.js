@@ -73,8 +73,10 @@
     }
   };
 
-  const getRegistration = async () =>
-    navigator.serviceWorker.register("/staff/notification-sw.js", { scope: "/staff/" });
+  const getRegistration = async () => {
+    await navigator.serviceWorker.register("/staff/notification-sw.js", { scope: "/staff/" });
+    return navigator.serviceWorker.ready;
+  };
 
   root.querySelector("[data-enable-push]")?.addEventListener("click", async () => {
     try {
