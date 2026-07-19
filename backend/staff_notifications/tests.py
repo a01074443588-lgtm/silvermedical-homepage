@@ -242,6 +242,12 @@ class NotificationApiTests(TestCase):
         self.assertContains(response, reverse("staff_notifications:dashboard"))
         self.assertContains(response, "내 알림 설정")
 
+        response = self.client.get(
+            reverse("admin:staff_notifications_staffnotificationprofile_changelist")
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "model-my-notification-settings")
+
     def test_push_subscription_is_stored_per_device(self):
         response = self.client.post(
             reverse("staff_notifications:push_subscribe"),

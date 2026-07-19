@@ -1,0 +1,37 @@
+{% load i18n %}
+
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
+<nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
+  <input type="search" id="nav-filter" placeholder="{% translate 'Start typing to filter…' %}" aria-label="{% translate 'Filter navigation items' %}">
+  {% if available_apps %}
+    {% for app in available_apps %}
+      <div class="app-{{ app.app_label }} module{% if app.app_url in request.path|urlencode %} current-app{% endif %}">
+        <table>
+          <caption>
+            <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
+          </caption>
+          {% if app.app_label == "staff_notifications" %}
+            <tr class="model-my-notification-settings">
+              <th scope="row"><a href="{% url 'staff_notifications:dashboard' %}">내 알림 설정</a></th>
+              <td></td>
+            </tr>
+          {% endif %}
+          {% for model in app.models %}
+            <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+              {% if model.admin_url %}
+                <th scope="row"><a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a></th>
+              {% else %}
+                <th scope="row">{{ model.name }}</th>
+              {% endif %}
+              {% if model.add_url %}
+                <td><a href="{{ model.add_url }}" class="addlink"><span class="visually-hidden">{% blocktranslate with name=model.name %}Add {{ name }}{% endblocktranslate %}</span></a></td>
+              {% else %}
+                <td></td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    {% endfor %}
+  {% endif %}
+</nav>

@@ -18,7 +18,7 @@ services:
     container_name: silvermedical-consultation
     environment:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}"
-      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-127.0.0.1,localhost,192.168.30.2}"
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-127.0.0.1,localhost,192.168.30.2,silvermedical.kr,www.silvermedical.kr,staff.silvermedical.kr}"
       DJANGO_CSRF_TRUSTED_ORIGINS: "${DJANGO_CSRF_TRUSTED_ORIGINS:-}"
       DJANGO_SECURE_COOKIES: "${DJANGO_SECURE_COOKIES:-false}"
       CONSULTATION_RETENTION_DAYS: "${CONSULTATION_RETENTION_DAYS:-365}"
@@ -46,7 +46,7 @@ services:
         condition: service_healthy
     environment:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}"
-      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-127.0.0.1,localhost,192.168.30.2}"
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-127.0.0.1,localhost,192.168.30.2,silvermedical.kr,www.silvermedical.kr,staff.silvermedical.kr}"
       DJANGO_CSRF_TRUSTED_ORIGINS: "${DJANGO_CSRF_TRUSTED_ORIGINS:-}"
       DJANGO_SECURE_COOKIES: "${DJANGO_SECURE_COOKIES:-false}"
       CONSULTATION_RETENTION_DAYS: "${CONSULTATION_RETENTION_DAYS:-365}"
