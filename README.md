@@ -1,6 +1,6 @@
 # 실버메디컬복지센터 홈페이지
 
-실버메디컬복지센터 공식 홈페이지, 장기요양 급여비용 계산기, 비공개 상담 접수함을 함께 관리하는 웹사이트입니다. 홈페이지 화면은 정적 HTML/CSS/JS로 제공하고, 상담과 연도별 급여비용 설정은 Django 관리 기능을 사용합니다.
+실버메디컬복지센터 공식 홈페이지, 센터소식 게시판, 장기요양 급여비용 계산기, 비공개 상담 접수함을 함께 관리하는 웹사이트입니다. 홈페이지 기본 화면은 정적 HTML/CSS/JS로 제공하고, 센터소식·상담·연도별 급여비용 설정은 Django 관리 기능을 사용합니다.
 
 요양원, 주간보호, 방문요양, 방문목욕, 단기보호, 통합재가 서비스를 보호자가 이해하기 쉽도록 구성했고, 메뉴별 상세 페이지와 `benefits.html` 급여비용 계산기를 함께 제공합니다.
 
@@ -51,6 +51,21 @@ curl -I http://127.0.0.1:8080
 
 공개 홈페이지 포트 `8080`에서는 `/staff/`가 열리지 않습니다. 직원 관리 포트 `8081`은 내부망에서 직접 사용하거나, Cloudflare Access로 보호된 `staff.silvermedical.kr`을 통해서만 사용합니다.
 - 재부팅 후 자동 실행: `restart: unless-stopped`
+
+## 센터소식 게시판 사용 방법
+
+- 공개 목록: `https://silvermedical.kr/news/`
+- 작성 화면: `https://staff.silvermedical.kr/staff/center_news/post/`
+- 분류: 공지사항, 센터 이야기, 영상 소식
+- 작성 권한: 최고관리자 또는 `콘텐츠 담당자` 그룹에 지정된 직원만 작성·수정할 수 있습니다.
+- 공개 상태가 `작성 중`인 글과 예약 시각 전 글은 홈페이지에 표시되지 않습니다.
+- `공개`로 저장한 최신 글 3개는 홈페이지 첫 화면에도 자동으로 표시됩니다.
+- 유튜브 영상 주소를 입력하면 상세 화면에서 바로 재생되고, 네이버 블로그 주소를 입력하면 새 창으로 연결됩니다.
+- 대표 사진은 JPG·PNG·WebP 형식의 8MB 이하 파일을 사용합니다. 저장할 때 최대 1600px의 WebP 이미지로 자동 최적화됩니다.
+- 대표 사진을 사용하는 경우 접근성을 위한 `사진 설명`을 반드시 입력해야 합니다.
+- 공개 허가가 확인되지 않은 얼굴, 수급자 정보, 내부 문서가 보이는 사진은 등록하지 않습니다.
+
+센터소식과 첨부 사진은 상담 데이터와 같은 Docker 영구 저장공간 `consultation_data`에 보관됩니다. 서버 백업 시 데이터베이스뿐 아니라 `/data/news-media`도 함께 포함해야 합니다. GitHub Pages만으로는 동적 게시판과 관리자 작성 기능이 작동하지 않으므로 운영 홈페이지는 현재 하모니카 서버 구성을 사용합니다.
 
 `DJANGO_SECRET_KEY`는 저장소에 기록하지 않습니다. 서버의 `/home/silverhome/.config/silvermedical/django_secret_key` 파일에만 보관하며 파일 권한은 소유자 읽기 전용으로 설정합니다.
 
@@ -120,12 +135,13 @@ Cloudflare Tunnel의 홈페이지 서비스 주소는 `http://homepage:80`입니
 ├─ robots.txt
 ├─ favicon.ico
 ├─ style.css
+├─ news.css
 ├─ script.js
 ├─ benefits.html
 ├─ benefits.css
 ├─ benefits.js
 ├─ README.md
-└─ assets/
+├─ assets/
    ├─ image-sources.md
    └─ images/
       ├─ logo.png
@@ -142,6 +158,12 @@ Cloudflare Tunnel의 홈페이지 서비스 주소는 `http://homepage:80`입니
       ├─ living-room.jpg
       ├─ floor-entrance.jpg
       └─ elevator.jpg
+└─ backend/
+   └─ center_news/
+      ├─ models.py
+      ├─ admin.py
+      ├─ views.py
+      └─ templates/center_news/
 ```
 
 ## 프로젝트 관리 기준

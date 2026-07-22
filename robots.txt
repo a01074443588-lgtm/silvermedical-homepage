@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://silvermedical.kr/sitemap.xml
+Sitemap: https://silvermedical.kr/news/sitemap.xml

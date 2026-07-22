@@ -1,0 +1,44 @@
+{% extends "center_news/base.html" %}
+
+{% block title %}{{ post.title }} | 실버메디컬복지센터{% endblock %}
+{% block description %}{{ post.summary }}{% endblock %}
+{% block canonical %}https://silvermedical.kr{{ post.get_absolute_url }}{% endblock %}
+{% block og_title %}{{ post.title }} | 실버메디컬복지센터{% endblock %}
+{% block og_description %}{{ post.summary }}{% endblock %}
+{% block og_image %}{% if post.cover_image %}https://silvermedical.kr{{ post.cover_image.url }}{% else %}https://silvermedical.kr/assets/images/meal-event.jpg{% endif %}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block structured_data %}
+  <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"BlogPosting","headline":"{{ post.title|escapejs }}","description":"{{ post.summary|escapejs }}","datePublished":"{{ post.published_at|date:'c' }}","dateModified":"{{ post.updated_at|date:'c' }}","author":{"@type":"Organization","name":"실버메디컬복지센터"},"publisher":{"@type":"Organization","name":"실버메디컬복지센터"},"mainEntityOfPage":"https://silvermedical.kr{{ post.get_absolute_url }}"}
+  </script>
+{% endblock %}
+
+{% block content %}
+  <section class="news-detail-hero">
+    <div class="news-detail-heading">
+      <nav class="breadcrumb" aria-label="현재 위치"><a href="/index.html">홈</a><a href="{% url 'center_news:list' %}">센터소식</a><span>{{ post.get_category_display }}</span></nav>
+      <div class="news-detail-meta"><span>{{ post.get_category_display }}</span><time datetime="{{ post.published_at|date:'c' }}">{{ post.published_at|date:"Y년 m월 d일" }}</time>{% if post.is_pinned %}<strong>중요 안내</strong>{% endif %}</div>
+      <h1>{{ post.title }}</h1>
+      <p>{{ post.summary }}</p>
+    </div>
+  </section>
+
+  <article class="news-article">
+    {% if post.cover_image %}<figure class="news-cover"><img src="{{ post.cover_image.url }}" alt="{{ post.image_alt }}" /><figcaption>{{ post.image_alt }}</figcaption></figure>{% endif %}
+    {% if post.youtube_embed_url %}
+      <div class="news-video"><iframe src="{{ post.youtube_embed_url }}" title="{{ post.title }} 영상" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+    {% endif %}
+    {% if post.body %}<div class="news-body">{{ post.body|linebreaks }}</div>{% endif %}
+    {% if post.naver_blog_url or post.youtube_url %}
+      <div class="news-external-links">
+        {% if post.naver_blog_url %}<a class="button primary" href="{{ post.naver_blog_url }}" target="_blank" rel="noopener noreferrer">네이버 블로그 원문 보기</a>{% endif %}
+        {% if post.youtube_url %}<a class="button outline" href="{{ post.youtube_url }}" target="_blank" rel="noopener noreferrer">유튜브에서 보기</a>{% endif %}
+      </div>
+    {% endif %}
+    <div class="news-detail-actions"><a class="button outline" href="{% url 'center_news:list' %}">센터소식 목록</a><a class="button primary" href="/contact.html">상담문의</a></div>
+  </article>
+
+  {% if related_posts %}
+    <section class="detail-band"><div class="detail-section"><div class="section-heading"><p class="eyebrow">함께 읽기</p><h2>같은 분류의 다른 소식</h2></div><div class="news-related-grid">{% for item in related_posts %}<article><span>{{ item.get_category_display }} · {{ item.published_at|date:"Y.m.d" }}</span><h3><a href="{{ item.get_absolute_url }}">{{ item.title }}</a></h3><p>{{ item.summary }}</p></article>{% endfor %}</div></div></section>
+  {% endif %}
+{% endblock %}

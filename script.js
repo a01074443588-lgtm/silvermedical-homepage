@@ -53,6 +53,71 @@ if (consultationEntries.length) {
     });
 }
 
+const homeNewsGrid = document.querySelector("#homeNewsGrid");
+if (homeNewsGrid) {
+  fetch("/news/api/latest/", {
+    headers: { Accept: "application/json" },
+  })
+    .then((response) => {
+      if (!response.ok) throw new Error("센터소식을 불러오지 못했습니다.");
+      return response.json();
+    })
+    .then(({ posts = [] }) => {
+      homeNewsGrid.replaceChildren();
+      if (!posts.length) {
+        const empty = document.createElement("p");
+        empty.className = "home-news-loading";
+        empty.textContent = "새로운 센터소식을 준비하고 있습니다.";
+        homeNewsGrid.append(empty);
+        return;
+      }
+
+      posts.forEach((post) => {
+        const article = document.createElement("article");
+        article.className = "home-news-card";
+
+        const media = document.createElement("a");
+        media.className = "home-news-media";
+        media.href = post.url;
+        media.setAttribute("aria-label", `${post.title} 자세히 보기`);
+        if (post.image_url) {
+          const image = document.createElement("img");
+          image.src = post.image_url;
+          image.alt = post.image_alt || "";
+          image.loading = "lazy";
+          media.append(image);
+        } else {
+          const placeholder = document.createElement("span");
+          placeholder.textContent = post.has_video ? "영상 소식" : post.category;
+          media.append(placeholder);
+        }
+
+        const body = document.createElement("div");
+        body.className = "home-news-body";
+        const meta = document.createElement("p");
+        meta.className = "home-news-meta";
+        meta.textContent = `${post.category} · ${post.published_at.replaceAll("-", ".")}`;
+        const title = document.createElement("h3");
+        const titleLink = document.createElement("a");
+        titleLink.href = post.url;
+        titleLink.textContent = post.title;
+        title.append(titleLink);
+        const summary = document.createElement("p");
+        summary.textContent = post.summary;
+        body.append(meta, title, summary);
+        article.append(media, body);
+        homeNewsGrid.append(article);
+      });
+    })
+    .catch(() => {
+      homeNewsGrid.replaceChildren();
+      const fallback = document.createElement("p");
+      fallback.className = "home-news-loading";
+      fallback.textContent = "센터소식은 전체보기에서 확인하실 수 있습니다.";
+      homeNewsGrid.append(fallback);
+    });
+}
+
 document.querySelectorAll(".back-to-top").forEach((button) => {
   button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 });

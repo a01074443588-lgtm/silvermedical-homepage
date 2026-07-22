@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "benefits.apps.BenefitsConfig",
     "consultations.apps.ConsultationsConfig",
     "staff_notifications.apps.StaffNotificationsConfig",
+    "center_news.apps.CenterNewsConfig",
 ]
 
 MIDDLEWARE = [
@@ -94,6 +95,8 @@ USE_TZ = True
 
 STATIC_URL = "/staff-assets/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/news-media/"
+MEDIA_ROOT = Path(os.getenv("DJANGO_MEDIA_ROOT", "/data/news-media"))
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {
@@ -120,7 +123,8 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = 128 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024
 CONSULTATION_RETENTION_DAYS = int(os.getenv("CONSULTATION_RETENTION_DAYS", "365"))
 
 WEBPUSH_VAPID_PRIVATE_KEY = os.getenv("WEBPUSH_VAPID_PRIVATE_KEY", "").strip()
