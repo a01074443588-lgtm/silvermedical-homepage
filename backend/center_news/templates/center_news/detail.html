@@ -15,6 +15,14 @@
 {% endblock %}
 
 {% block content %}
+  {% if is_preview %}
+    <aside class="news-preview-banner" role="status">
+      <strong>관리자 전용 완성 화면 미리보기</strong>
+      <span>{% if post.is_public_now %}현재 공개된 글입니다.{% else %}현재 작성 중이며 방문자에게는 보이지 않습니다.{% endif %}</span>
+      <a href="{{ admin_change_url }}">편집 화면으로 돌아가기</a>
+      {% if post.is_public_now %}<a href="https://silvermedical.kr{{ post.get_absolute_url }}" target="_blank" rel="noopener">실제 공개 페이지 열기</a>{% endif %}
+    </aside>
+  {% endif %}
   <section class="news-detail-hero">
     <div class="news-detail-heading">
       <nav class="breadcrumb" aria-label="현재 위치"><a href="/index.html">홈</a><a href="{% url 'center_news:list' %}">센터소식</a><span>{{ post.get_category_display }}</span></nav>
@@ -30,6 +38,22 @@
       <div class="news-video"><iframe src="{{ post.youtube_embed_url }}" title="{{ post.title }} 영상" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
     {% endif %}
     {% if post.body %}<div class="news-body">{{ post.body|render_news_body }}</div>{% endif %}
+    {% if post.gallery_images.all %}
+      <section class="news-gallery" aria-labelledby="news-gallery-title">
+        <div class="news-gallery-heading">
+          <p class="eyebrow">사진으로 보는 이야기</p>
+          <h2 id="news-gallery-title">함께 담은 현장 모습</h2>
+        </div>
+        <div class="news-gallery-grid">
+          {% for item in post.gallery_images.all %}
+            <figure>
+              <img src="{{ item.image.url }}" alt="{{ item.image_alt }}" loading="lazy" />
+              {% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}
+            </figure>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
     {% if post.naver_blog_url or post.youtube_url %}
       <div class="news-external-links">
         {% if post.naver_blog_url %}<a class="button primary" href="{{ post.naver_blog_url }}" target="_blank" rel="noopener noreferrer">네이버 블로그 원문 보기</a>{% endif %}

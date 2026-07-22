@@ -38,8 +38,12 @@ class NaverBlogPost:
     body: str
     summary: str
     source_url: str
-    image_url: str = ""
+    image_urls: tuple[str, ...] = ()
     youtube_url: str = ""
+
+    @property
+    def image_url(self):
+        return self.image_urls[0] if self.image_urls else ""
 
 
 def normalize_text(value):
@@ -91,7 +95,13 @@ def _extract_body_paragraphs(container):
     return paragraphs
 
 
-def _extract_image_url(container):
+def _normalize_image_url(image_url):
+    parts = urlsplit(image_url)
+    query = "type=w966" if parts.netloc.endswith("pstatic.net") else parts.query
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, query, ""))
+
+
+def _extract_image_urls(container):
     candidates = []
     for image in container.select("img.se-image-resource"):
         image_url = image.get("data-lazy-src") or image.get("src") or ""
@@ -104,18 +114,24 @@ def _extract_image_url(container):
         candidates.append((image_url, width))
 
     if not candidates:
-        return ""
-    # Keep the article's visual order while ignoring tiny placeholders.
-    # Some SmartEditor images omit data-width, so fall back to the best URL.
-    selected_url = next(
-        (image_url for image_url, width in candidates if width >= 320),
-        max(candidates, key=lambda candidate: candidate[1])[0],
-    )
-    parts = urlsplit(selected_url)
-    # Query-free Naver image URLs return a tiny 100px thumbnail. Request the
-    # largest consistently available SmartEditor rendition instead.
-    query = "type=w966" if parts.netloc.endswith("pstatic.net") else parts.query
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, query, ""))
+        return ()
+
+    # Keep every article photo in its visual order while excluding known tiny
+    # placeholders. SmartEditor sometimes omits data-width, so those images are
+    # retained and validated again when downloaded.
+    eligible = [candidate for candidate in candidates if candidate[1] == 0 or candidate[1] >= 320]
+    if not eligible:
+        eligible = [max(candidates, key=lambda candidate: candidate[1])]
+
+    image_urls = []
+    seen = set()
+    for image_url, _ in eligible:
+        normalized_url = _normalize_image_url(image_url)
+        if normalized_url in seen:
+            continue
+        seen.add(normalized_url)
+        image_urls.append(normalized_url)
+    return tuple(image_urls)
 
 
 def _extract_youtube_url(container):
@@ -171,7 +187,7 @@ def parse_post_list(html_text, blog_id):
                 body="\n\n".join(paragraphs),
                 summary=build_summary(paragraphs, title),
                 source_url=BLOG_POST_URL.format(blog_id=blog_id, log_no=log_no),
-                image_url=_extract_image_url(content_node),
+                image_urls=_extract_image_urls(content_node),
                 youtube_url=_extract_youtube_url(content_node),
             )
         )

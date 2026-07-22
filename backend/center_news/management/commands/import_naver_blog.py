@@ -5,14 +5,16 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import requests
+from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 
-from center_news.models import Post
+from center_news.models import Post, PostImage
 from center_news.naver_import import parse_post_list
 
 
@@ -20,6 +22,7 @@ POST_LIST_URL = "https://blog.naver.com/PostList.naver"
 BLOG_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 MAX_IMAGE_SIZE = 8 * 1024 * 1024
 ALLOWED_IMAGE_HOSTS = {"postfiles.pstatic.net", "blogfiles.pstatic.net"}
+MAX_IMAGES_PER_POST = 40
 
 
 class Command(BaseCommand):
@@ -62,18 +65,22 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("기준일 이후에 가져올 새 글이 없습니다."))
             return
 
-        existing_urls = set(
-            Post.objects.filter(naver_blog_url__in=[post.source_url for post in candidates]).values_list(
-                "naver_blog_url", flat=True
+        existing_posts = {
+            post.naver_blog_url: post
+            for post in Post.objects.filter(
+                naver_blog_url__in=[item.source_url for item in candidates]
             )
-        )
-        new_posts = [post for post in candidates if post.source_url not in existing_urls]
+        }
+        new_posts = [item for item in candidates if item.source_url not in existing_posts]
 
         self.stdout.write(
             f"대상 {len(candidates)}개 / 이미 등록됨 {len(candidates) - len(new_posts)}개 / 새 글 {len(new_posts)}개"
         )
-        for item in new_posts:
-            self.stdout.write(f"- {item.published_at:%Y-%m-%d} | {item.title}")
+        for item in candidates:
+            mode = "새 글" if item.source_url not in existing_posts else "사진 동기화"
+            self.stdout.write(
+                f"- {item.published_at:%Y-%m-%d} | {mode} | 사진 {len(item.image_urls)}장 | {item.title}"
+            )
 
         if options["dry_run"]:
             self.stdout.write(self.style.SUCCESS("미리보기만 완료했습니다. 데이터는 변경하지 않았습니다."))
@@ -81,39 +88,109 @@ class Command(BaseCommand):
 
         author = self._find_author(options["username"])
         created = 0
+        synchronized = 0
+        cover_added = 0
+        gallery_added = 0
         image_skipped = 0
-        for item in new_posts:
-            image_content = None
-            image_name = ""
-            if item.image_url and not options["skip_images"]:
-                try:
-                    image_content, image_name = self._download_image(session, item.image_url, item.log_no)
-                except (requests.RequestException, ValueError) as exc:
-                    image_skipped += 1
-                    self.stderr.write(self.style.WARNING(f"사진 건너뜀 {item.log_no}: {exc}"))
-
+        for item in candidates:
             with transaction.atomic():
-                post = Post(
-                    category=Post.Category.STORY,
-                    title=item.title,
-                    summary=item.summary,
-                    body=item.body,
-                    youtube_url=item.youtube_url,
-                    naver_blog_url=item.source_url,
-                    status=Post.Status.DRAFT,
-                    published_at=timezone.make_aware(item.published_at),
-                    created_by=author,
-                    updated_by=author,
+                post = existing_posts.get(item.source_url)
+                is_new = post is None
+                if is_new:
+                    post = Post(
+                        category=Post.Category.STORY,
+                        title=item.title,
+                        summary=item.summary,
+                        body=item.body,
+                        youtube_url=item.youtube_url,
+                        naver_blog_url=item.source_url,
+                        status=Post.Status.DRAFT,
+                        published_at=timezone.make_aware(item.published_at),
+                        created_by=author,
+                        updated_by=author,
+                    )
+
+                added_for_post = 0
+                cover_added_for_post = False
+                image_urls = item.image_urls[:MAX_IMAGES_PER_POST]
+                if image_urls and not options["skip_images"] and not post.cover_image:
+                    try:
+                        image_content, image_name = self._download_image(
+                            session,
+                            image_urls[0],
+                            f"naver-{item.log_no}-cover",
+                        )
+                        image_content.name = image_name
+                        post.cover_image = image_content
+                        post.image_alt = f"{item.title} 관련 대표 사진"
+                        cover_added += 1
+                        cover_added_for_post = True
+                    except (requests.RequestException, ValueError) as exc:
+                        image_skipped += 1
+                        self.stderr.write(
+                            self.style.WARNING(f"대표 사진 건너뜀 {item.log_no}: {exc}")
+                        )
+
+                if is_new:
+                    post.save()
+                    created += 1
+                elif cover_added_for_post:
+                    post.updated_by = author
+                    post.save(
+                        update_fields=["cover_image", "image_alt", "updated_by", "updated_at"]
+                    )
+                elif post.cover_image and not post.image_alt:
+                    post.image_alt = f"{item.title} 관련 대표 사진"
+                    post.updated_by = author
+                    post.save(update_fields=["image_alt", "updated_by", "updated_at"])
+
+                existing_sources = set(
+                    post.gallery_images.exclude(source_url="").values_list("source_url", flat=True)
                 )
-                if image_content:
-                    post.cover_image.save(image_name, image_content, save=False)
-                    post.image_alt = f"{item.title} 관련 사진"
-                post.save()
-                created += 1
+                if not options["skip_images"]:
+                    for index, image_url in enumerate(image_urls[1:], start=2):
+                        sort_order = index * 10
+                        if image_url in existing_sources:
+                            post.gallery_images.filter(source_url=image_url).update(
+                                sort_order=sort_order
+                            )
+                            continue
+                        try:
+                            image_content, image_name = self._download_image(
+                                session,
+                                image_url,
+                                f"naver-{item.log_no}-{index}",
+                            )
+                            gallery_image = PostImage(
+                                post=post,
+                                image_alt=f"{item.title} 관련 사진 {index}",
+                                sort_order=sort_order,
+                                source_url=image_url,
+                            )
+                            image_content.name = image_name
+                            gallery_image.image = image_content
+                            gallery_image.save()
+                            existing_sources.add(image_url)
+                            added_for_post += 1
+                            gallery_added += 1
+                        except (requests.RequestException, ValueError) as exc:
+                            image_skipped += 1
+                            self.stderr.write(
+                                self.style.WARNING(
+                                    f"추가 사진 건너뜀 {item.log_no}-{index}: {exc}"
+                                )
+                            )
+
+                total_added_for_post = added_for_post + int(cover_added_for_post)
+                if not is_new and total_added_for_post:
+                    synchronized += 1
+                self._record_admin_history(post, author, is_new, total_added_for_post)
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"임시저장 {created}개를 가져왔습니다. 사진 건너뜀 {image_skipped}개. 공개 전 반드시 사진을 확인해 주세요."
+                f"임시저장 새 글 {created}개, 기존 글 사진 보충 {synchronized}개, "
+                f"대표사진 추가 {cover_added}장, 추가사진 저장 {gallery_added}장, "
+                f"사진 건너뜀 {image_skipped}장. 공개 전 반드시 모든 사진을 확인해 주세요."
             )
         )
 
@@ -154,7 +231,36 @@ class Command(BaseCommand):
             return author
         return users.filter(is_superuser=True).order_by("pk").first()
 
-    def _download_image(self, session, image_url, log_no):
+    def _record_admin_history(self, post, author, is_new, added_images):
+        if not author:
+            return
+        content_type = ContentType.objects.get_for_model(Post)
+        history = LogEntry.objects.filter(
+            content_type=content_type,
+            object_id=str(post.pk),
+        )
+        if not is_new and not added_images and history.exists():
+            return
+
+        if is_new:
+            message = "네이버 블로그에서 임시저장 글로 가져왔습니다."
+            action_flag = ADDITION
+        elif added_images:
+            message = f"네이버 블로그 사진 {added_images}장을 추가로 동기화했습니다."
+            action_flag = CHANGE
+        else:
+            message = "네이버 블로그 가져오기 상태를 확인했습니다."
+            action_flag = CHANGE
+        LogEntry.objects.log_action(
+            user_id=author.pk,
+            content_type_id=content_type.pk,
+            object_id=post.pk,
+            object_repr=str(post),
+            action_flag=action_flag,
+            change_message=message,
+        )
+
+    def _download_image(self, session, image_url, file_stem):
         image_host = urlsplit(image_url).hostname or ""
         if image_host not in ALLOWED_IMAGE_HOSTS:
             raise ValueError("허용된 네이버 사진 주소가 아닙니다.")
@@ -182,12 +288,13 @@ class Command(BaseCommand):
             or extensions.get(content_type)
             or Path(urlsplit(image_url).path).suffix.lower()
         )
+        safe_stem = re.sub(r"[^A-Za-z0-9_-]", "-", file_stem).strip("-") or "naver-image"
         if extension in {".jpg", ".jpeg", ".png", ".webp"}:
-            return ContentFile(response.content), f"naver-{log_no}{extension}"
+            return ContentFile(response.content), f"{safe_stem}{extension}"
 
         # 움직이는 GIF 등은 첫 화면을 대표 사진용 PNG로 변환합니다.
         with Image.open(BytesIO(response.content)) as source:
             frame = source.convert("RGBA" if "transparency" in source.info else "RGB")
             output = BytesIO()
             frame.save(output, format="PNG")
-        return ContentFile(output.getvalue()), f"naver-{log_no}.png"
+        return ContentFile(output.getvalue()), f"{safe_stem}.png"

@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.utils._os import safe_join
 from django.views.decorators.http import require_safe
 
-from .models import Post
+from .models import Post, PostImage
 
 
 @require_safe
@@ -39,7 +39,7 @@ def post_list(request):
 @require_safe
 def post_detail(request, slug):
     post = get_object_or_404(
-        Post.objects.published().select_related("created_by"),
+        Post.objects.published().select_related("created_by").prefetch_related("gallery_images"),
         slug=slug,
     )
     category = request.GET.get("category", "").strip()
@@ -122,10 +122,18 @@ def latest_posts(request):
 
 @require_safe
 def public_media(request, path):
-    if not (request.user.is_authenticated and request.user.is_staff):
-        is_public_image = Post.objects.published().filter(cover_image=path).exists()
-        if not is_public_image:
-            raise Http404
+    is_public_image = (
+        Post.objects.published().filter(cover_image=path).exists()
+        or PostImage.objects.filter(
+            image=path,
+            post__status=Post.Status.PUBLISHED,
+            post__published_at__isnull=False,
+            post__published_at__lte=timezone.now(),
+        ).exists()
+    )
+    is_staff = request.user.is_authenticated and request.user.is_staff
+    if not is_public_image and not is_staff:
+        raise Http404
     try:
         file_path = Path(safe_join(settings.MEDIA_ROOT, path))
     except Exception as exc:
@@ -137,7 +145,9 @@ def public_media(request, path):
         file_path.open("rb"),
         content_type=guess_type(file_path.name)[0] or "application/octet-stream",
     )
-    response["Cache-Control"] = "public, max-age=604800"
+    response["Cache-Control"] = (
+        "public, max-age=604800" if is_public_image else "private, no-store, max-age=0"
+    )
     response["X-Content-Type-Options"] = "nosniff"
     return response
 

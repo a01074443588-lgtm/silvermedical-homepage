@@ -1,8 +1,28 @@
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404, render
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import Post
+from .models import Post, PostImage
+
+
+class PostImageInline(admin.StackedInline):
+    model = PostImage
+    extra = 3
+    fields = ["image", "image_preview", "image_alt", "caption", "sort_order"]
+    readonly_fields = ["image_preview"]
+
+    @admin.display(description="현재 사진")
+    def image_preview(self, obj):
+        if not obj or not obj.image:
+            return "새 사진을 선택해 주세요."
+        return format_html(
+            '<img src="{}" alt="" style="width:240px;max-height:180px;object-fit:contain;border-radius:6px">',
+            obj.image.url,
+        )
 
 
 @admin.register(Post)
@@ -15,8 +35,9 @@ class PostAdmin(admin.ModelAdmin):
     list_editable = ["is_pinned"]
     readonly_fields = ["cover_preview", "created_by", "updated_by", "created_at", "updated_at"]
     actions = ["publish_selected", "move_to_draft"]
+    inlines = [PostImageInline]
     save_on_top = True
-    view_on_site = True
+    change_form_template = "admin/center_news/post/change_form.html"
     fieldsets = [
         (
             "게시글 내용",
@@ -48,6 +69,48 @@ class PostAdmin(admin.ModelAdmin):
         ),
     ]
 
+    class Media:
+        css = {"all": ("center_news/admin-editor.css",)}
+        js = ("center_news/admin-editor.js",)
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "<path:object_id>/preview/",
+                self.admin_site.admin_view(self.preview_view),
+                name="center_news_post_preview",
+            )
+        ]
+        return custom_urls + super().get_urls()
+
+    def view_on_site(self, obj):
+        return reverse("admin:center_news_post_preview", args=[obj.pk])
+
+    def preview_view(self, request, object_id):
+        post = get_object_or_404(Post.objects.prefetch_related("gallery_images"), pk=object_id)
+        if not self.has_view_permission(request, post):
+            raise PermissionDenied
+
+        response = render(
+            request,
+            "center_news/detail.html",
+            {
+                "post": post,
+                "related_posts": [],
+                "previous_post": None,
+                "next_post": None,
+                "selected_category": "",
+                "page_number": "1",
+                "list_url": reverse("center_news:list"),
+                "is_preview": True,
+                "admin_change_url": reverse("admin:center_news_post_change", args=[post.pk]),
+            },
+        )
+        response["Cache-Control"] = "no-store, max-age=0"
+        response["X-Frame-Options"] = "SAMEORIGIN"
+        response["X-Robots-Tag"] = "noindex, nofollow"
+        return response
+
     @admin.display(description="공개 상태", boolean=True)
     def publication_status(self, obj):
         return obj.is_public_now
@@ -67,13 +130,32 @@ class PostAdmin(admin.ModelAdmin):
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)
 
+    def response_change(self, request, obj):
+        if "_preview" in request.POST:
+            self.message_user(request, "저장했습니다. 완성 화면 미리보기를 표시합니다.", messages.SUCCESS)
+            return HttpResponseRedirect(reverse("admin:center_news_post_preview", args=[obj.pk]))
+        return super().response_change(request, obj)
+
     @admin.action(description="선택한 글을 지금 공개")
     def publish_selected(self, request, queryset):
-        queryset.filter(published_at__isnull=True).update(published_at=timezone.now())
-        count = queryset.update(status=Post.Status.PUBLISHED)
+        count = 0
+        for post in queryset:
+            if not post.published_at:
+                post.published_at = timezone.now()
+            post.status = Post.Status.PUBLISHED
+            post.updated_by = request.user
+            post.save(update_fields=["status", "published_at", "updated_by", "updated_at"])
+            self.log_change(request, post, "목록에서 선택하여 공개 상태로 변경했습니다.")
+            count += 1
         self.message_user(request, f"{count}개 게시글을 공개했습니다.", messages.SUCCESS)
 
     @admin.action(description="선택한 글을 작성 중으로 변경")
     def move_to_draft(self, request, queryset):
-        count = queryset.update(status=Post.Status.DRAFT)
+        count = 0
+        for post in queryset:
+            post.status = Post.Status.DRAFT
+            post.updated_by = request.user
+            post.save(update_fields=["status", "updated_by", "updated_at"])
+            self.log_change(request, post, "목록에서 선택하여 작성 중 상태로 변경했습니다.")
+            count += 1
         self.message_user(request, f"{count}개 게시글을 작성 중으로 변경했습니다.", messages.SUCCESS)

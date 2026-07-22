@@ -1,0 +1,35 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block after_field_sets %}
+  {{ block.super }}
+  {% if original %}
+    <section class="center-news-editor-preview" data-preview-url="{% url 'admin:center_news_post_preview' original.pk %}">
+      <div class="center-news-editor-preview-header">
+        <div>
+          <h2>완성 화면 미리보기</h2>
+          <p>제목·요약·본문은 입력하는 즉시 아래 화면에 반영됩니다. 사진 추가·순서 변경은 저장 후 확인됩니다.</p>
+        </div>
+        <div class="center-news-editor-preview-actions">
+          <button type="button" data-preview-refresh>저장된 화면 새로고침</button>
+          <a href="{% url 'admin:center_news_post_preview' original.pk %}" target="_blank" rel="noopener">새 창으로 크게 보기</a>
+        </div>
+      </div>
+      <p class="center-news-editor-preview-status" data-preview-status>저장된 화면을 불러오는 중입니다.</p>
+      <iframe
+        id="center-news-preview-frame"
+        src="{% url 'admin:center_news_post_preview' original.pk %}"
+        title="게시글 완성 화면 미리보기"
+      ></iframe>
+    </section>
+  {% endif %}
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+  {{ block.super }}
+  {% if original %}
+    <div class="submit-row center-news-preview-submit">
+      <input type="submit" name="_preview" value="저장 후 완성 화면 보기" />
+    </div>
+  {% endif %}
+{% endblock %}

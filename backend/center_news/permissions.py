@@ -11,6 +11,15 @@ def ensure_content_editor_group(sender, **kwargs):
     group, _ = Group.objects.get_or_create(name="콘텐츠 담당자")
     permissions = Permission.objects.filter(
         content_type__app_label="center_news",
-        codename__in=("add_post", "change_post", "delete_post", "view_post"),
+        codename__in=(
+            "add_post",
+            "change_post",
+            "delete_post",
+            "view_post",
+            "add_postimage",
+            "change_postimage",
+            "delete_postimage",
+            "view_postimage",
+        ),
     )
     group.permissions.set(permissions)

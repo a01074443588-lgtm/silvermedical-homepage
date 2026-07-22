@@ -1,18 +1,22 @@
 from datetime import timedelta
 from io import BytesIO
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
+from django.contrib.admin.models import LogEntry
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from .models import Post, extract_youtube_id
-from .naver_import import build_summary, parse_post_list, rewrite_title
+from .models import Post, PostImage, extract_youtube_id
+from .naver_import import NaverBlogPost, build_summary, parse_post_list, rewrite_title
 from .templatetags.news_content import render_news_body
 
 
@@ -60,6 +64,29 @@ class CenterNewsModelTests(TestCase):
             )
             self.assertTrue(post.cover_image.name.endswith(".webp"))
             with Image.open(post.cover_image.path) as optimized:
+                self.assertLessEqual(max(optimized.size), 1600)
+                self.assertEqual(optimized.format, "WEBP")
+            post.delete()
+
+    def test_gallery_image_is_optimized_to_webp(self):
+        source = BytesIO()
+        Image.new("RGB", (2100, 1300), "#e9dfc8").save(source, format="JPEG")
+        upload = SimpleUploadedFile("activity.jpg", source.getvalue(), content_type="image/jpeg")
+
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            post = Post.objects.create(
+                category=Post.Category.STORY,
+                title="여러 사진 확인",
+                summary="추가 사진 최적화를 확인합니다.",
+            )
+            gallery = PostImage.objects.create(
+                post=post,
+                image=upload,
+                image_alt="프로그램에 참여하는 손 모습",
+                sort_order=10,
+            )
+            self.assertTrue(gallery.image.name.endswith(".webp"))
+            with Image.open(gallery.image.path) as optimized:
                 self.assertLessEqual(max(optimized.size), 1600)
                 self.assertEqual(optimized.format, "WEBP")
             post.delete()
@@ -118,6 +145,75 @@ class NaverImportTests(TestCase):
         post = parse_post_list(html, "sil3307")[0]
         self.assertEqual(post.image_url, "https://postfiles.pstatic.net/first.jpg?type=w966")
 
+    def test_image_picker_keeps_multiple_article_photos_in_order(self):
+        html = self.sample_html.replace(
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/sample.jpg?type=w773">',
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/first.jpg?type=w773" data-width="693">'
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/second.jpg?type=w773" data-width="900">'
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/first.jpg?type=w80_blur" data-width="693">',
+        )
+        post = parse_post_list(html, "sil3307")[0]
+        self.assertEqual(
+            post.image_urls,
+            (
+                "https://postfiles.pstatic.net/first.jpg?type=w966",
+                "https://postfiles.pstatic.net/second.jpg?type=w966",
+            ),
+        )
+
+    def test_import_command_adds_gallery_images_and_history_to_existing_draft(self):
+        user = get_user_model().objects.create_superuser(
+            "silveradmin", "import@example.com", "long-test-password"
+        )
+        source_url = "https://blog.naver.com/sil3307/123456789"
+        original_date = timezone.now() - timedelta(days=200)
+        post = Post.objects.create(
+            category=Post.Category.STORY,
+            title="기존 임시 글",
+            summary="기존 글 내용은 그대로 둡니다.",
+            naver_blog_url=source_url,
+            status=Post.Status.DRAFT,
+            published_at=original_date,
+            created_by=user,
+            updated_by=user,
+        )
+        item = NaverBlogPost(
+            log_no="123456789",
+            title="가져온 제목",
+            original_title="가져온 원문 제목",
+            published_at=timezone.localtime(original_date).replace(tzinfo=None),
+            body="가져온 본문",
+            summary="가져온 요약",
+            source_url=source_url,
+            image_urls=(
+                "https://postfiles.pstatic.net/cover.jpg?type=w966",
+                "https://postfiles.pstatic.net/second.jpg?type=w966",
+                "https://postfiles.pstatic.net/third.jpg?type=w966",
+            ),
+        )
+        image_bytes = BytesIO()
+        Image.new("RGB", (800, 600), "#dfead2").save(image_bytes, format="JPEG")
+
+        def fake_download(_self, _session, _url, file_stem):
+            return ContentFile(image_bytes.getvalue()), f"{file_stem}.jpg"
+
+        command_path = "center_news.management.commands.import_naver_blog.Command"
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            with patch(f"{command_path}._collect_candidates", return_value=[item]), patch(
+                f"{command_path}._download_image", new=fake_download
+            ):
+                call_command("import_naver_blog", username=user.username)
+
+            post.refresh_from_db()
+            self.assertEqual(post.status, Post.Status.DRAFT)
+            self.assertEqual(post.title, "기존 임시 글")
+            self.assertEqual(post.published_at, original_date)
+            self.assertTrue(post.cover_image.name.endswith(".webp"))
+            self.assertEqual(post.gallery_images.count(), 2)
+            self.assertTrue(
+                LogEntry.objects.filter(object_id=str(post.pk), change_message__contains="사진 3장").exists()
+            )
+
     def test_summary_is_limited_to_model_length(self):
         summary = build_summary(["가" * 180, "나" * 180], "대체 제목")
         self.assertLessEqual(len(summary), 220)
@@ -163,6 +259,7 @@ class CenterNewsPublicViewTests(TestCase):
         self.assertContains(response, self.public_post.title)
         self.assertNotContains(response, self.draft_post.title)
         self.assertNotContains(response, self.future_post.title)
+        self.assertContains(response, "/news-view.js?v=20260722-editor")
 
     def test_list_accepts_head_request(self):
         response = self.client.head(reverse("center_news:list"))
@@ -211,6 +308,28 @@ class CenterNewsPublicViewTests(TestCase):
         response = self.client.get(reverse("admin:center_news_post_add"))
         self.assertEqual(response.status_code, 200)
 
+    def test_staff_can_preview_draft_and_open_history(self):
+        user = get_user_model().objects.create_superuser(
+            "previewadmin", "preview@example.com", "long-test-password"
+        )
+        self.client.force_login(user)
+        preview_url = reverse("admin:center_news_post_preview", args=[self.draft_post.pk])
+        preview = self.client.get(preview_url)
+        history = self.client.get(
+            reverse("admin:center_news_post_history", args=[self.draft_post.pk])
+        )
+        change = self.client.get(
+            reverse("admin:center_news_post_change", args=[self.draft_post.pk])
+        )
+
+        self.assertEqual(preview.status_code, 200)
+        self.assertContains(preview, "관리자 전용 완성 화면 미리보기")
+        self.assertIn("no-store", preview["Cache-Control"])
+        self.assertEqual(history.status_code, 200)
+        self.assertEqual(change.status_code, 200)
+        self.assertContains(change, preview_url)
+        self.assertContains(change, "완성 화면 미리보기")
+
     def test_bulk_publish_preserves_imported_publication_date(self):
         user = get_user_model().objects.create_superuser(
             "publishadmin", "publish@example.com", "long-test-password"
@@ -249,5 +368,59 @@ class CenterNewsPublicViewTests(TestCase):
         codenames = set(group.permissions.values_list("codename", flat=True))
         self.assertEqual(
             codenames,
-            {"add_post", "change_post", "delete_post", "view_post"},
+            {
+                "add_post",
+                "change_post",
+                "delete_post",
+                "view_post",
+                "add_postimage",
+                "change_postimage",
+                "delete_postimage",
+                "view_postimage",
+            },
         )
+
+    def test_public_detail_displays_all_gallery_images(self):
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            for index in range(2):
+                source = BytesIO()
+                Image.new("RGB", (640, 480), "#dfead2").save(source, format="JPEG")
+                PostImage.objects.create(
+                    post=self.public_post,
+                    image=SimpleUploadedFile(
+                        f"gallery-{index}.jpg", source.getvalue(), content_type="image/jpeg"
+                    ),
+                    image_alt=f"현장 사진 {index + 1}",
+                    sort_order=index * 10,
+                )
+
+            response = self.client.get(self.public_post.get_absolute_url())
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "현장 사진 1")
+            self.assertContains(response, "현장 사진 2")
+
+    def test_gallery_media_is_public_only_when_parent_post_is_public(self):
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            source = BytesIO()
+            Image.new("RGB", (640, 480), "#dfead2").save(source, format="JPEG")
+            public_image = PostImage.objects.create(
+                post=self.public_post,
+                image=SimpleUploadedFile("public.jpg", source.getvalue(), content_type="image/jpeg"),
+                image_alt="공개 사진",
+            )
+            draft_image = PostImage.objects.create(
+                post=self.draft_post,
+                image=SimpleUploadedFile("draft.jpg", source.getvalue(), content_type="image/jpeg"),
+                image_alt="임시 사진",
+            )
+
+            public_response = self.client.get(
+                reverse("news_media", kwargs={"path": public_image.image.name})
+            )
+            draft_response = self.client.get(
+                reverse("news_media", kwargs={"path": draft_image.image.name})
+            )
+            self.assertEqual(public_response.status_code, 200)
+            self.assertEqual(public_response["Cache-Control"], "public, max-age=604800")
+            self.assertEqual(draft_response.status_code, 404)
+            public_response.close()

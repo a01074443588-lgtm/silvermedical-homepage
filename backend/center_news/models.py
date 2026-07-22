@@ -9,6 +9,8 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -20,12 +22,29 @@ YOUTUBE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{6,20}$")
 
 def validate_image_size(upload):
     if upload.size > 8 * 1024 * 1024:
-        raise ValidationError("대표 사진은 8MB 이하 파일을 사용해 주세요.")
+        raise ValidationError("사진은 8MB 이하 파일을 사용해 주세요.")
 
 
 def post_image_path(instance, filename):
     now = timezone.localtime()
     return f"posts/{now:%Y/%m}/{uuid4().hex}{Path(filename).suffix.lower()}"
+
+
+def post_gallery_image_path(instance, filename):
+    now = timezone.localtime()
+    return f"posts/{now:%Y/%m}/gallery/{uuid4().hex}{Path(filename).suffix.lower()}"
+
+
+def optimize_uploaded_image(upload, max_size=(1600, 1600)):
+    upload.open()
+    with Image.open(upload) as source:
+        image = ImageOps.exif_transpose(source)
+        if image.mode not in {"RGB", "RGBA"}:
+            image = image.convert("RGB")
+        image.thumbnail(max_size, Image.Resampling.LANCZOS)
+        output = BytesIO()
+        image.save(output, format="WEBP", quality=82, method=6)
+    return ContentFile(output.getvalue()), f"{Path(upload.name).stem}.webp"
 
 
 def extract_youtube_id(url):
@@ -171,18 +190,8 @@ class Post(models.Model):
     def _optimize_cover_image(self):
         if not self.cover_image or getattr(self.cover_image, "_committed", True):
             return
-
-        self.cover_image.open()
-        with Image.open(self.cover_image) as source:
-            image = ImageOps.exif_transpose(source)
-            if image.mode not in {"RGB", "RGBA"}:
-                image = image.convert("RGB")
-            image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
-            output = BytesIO()
-            image.save(output, format="WEBP", quality=82, method=6)
-
-        filename = f"{Path(self.cover_image.name).stem}.webp"
-        self.cover_image.save(filename, ContentFile(output.getvalue()), save=False)
+        content, filename = optimize_uploaded_image(self.cover_image)
+        self.cover_image.save(filename, content, save=False)
 
     def save(self, *args, **kwargs):
         previous_image = ""
@@ -227,3 +236,73 @@ class Post(models.Model):
             and self.published_at
             and self.published_at <= timezone.now()
         )
+
+
+class PostImage(models.Model):
+    post = models.ForeignKey(
+        Post,
+        verbose_name="게시글",
+        related_name="gallery_images",
+        on_delete=models.CASCADE,
+    )
+    image = models.ImageField(
+        "추가 사진",
+        upload_to=post_gallery_image_path,
+        validators=[
+            FileExtensionValidator(["jpg", "jpeg", "png", "webp"]),
+            validate_image_size,
+        ],
+        help_text="JPG, PNG, WebP 형식의 8MB 이하 사진을 사용해 주세요.",
+    )
+    image_alt = models.CharField(
+        "사진 설명",
+        max_length=160,
+        help_text="사진을 보지 못하는 이용자도 이해할 수 있도록 내용을 설명해 주세요.",
+    )
+    caption = models.CharField(
+        "화면에 표시할 설명",
+        max_length=200,
+        blank=True,
+    )
+    sort_order = models.PositiveSmallIntegerField(
+        "표시 순서",
+        default=0,
+        db_index=True,
+        help_text="작은 숫자부터 먼저 표시됩니다.",
+    )
+    source_url = models.URLField("원본 사진 주소", max_length=1000, blank=True, editable=False)
+    created_at = models.DateTimeField("등록 시각", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "게시글 추가 사진"
+        verbose_name_plural = "게시글 추가 사진"
+        ordering = ["sort_order", "pk"]
+
+    def __str__(self):
+        return f"{self.post.title} - 사진 {self.sort_order}"
+
+    def clean(self):
+        super().clean()
+        if self.image and not (self.image_alt or "").strip():
+            raise ValidationError({"image_alt": "추가 사진의 설명을 입력해 주세요."})
+
+    def save(self, *args, **kwargs):
+        previous_image = ""
+        if self.pk:
+            previous_image = (
+                type(self).objects.filter(pk=self.pk).values_list("image", flat=True).first()
+                or ""
+            )
+        if self.image and not getattr(self.image, "_committed", True):
+            content, filename = optimize_uploaded_image(self.image)
+            self.image.save(filename, content, save=False)
+        self.full_clean()
+        super().save(*args, **kwargs)
+        if previous_image and previous_image != self.image.name:
+            self.image.storage.delete(previous_image)
+
+
+@receiver(post_delete, sender=PostImage)
+def delete_post_image_file(sender, instance, **kwargs):
+    if instance.image and instance.image.name:
+        instance.image.storage.delete(instance.image.name)
