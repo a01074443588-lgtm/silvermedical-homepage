@@ -11,8 +11,6 @@
 .operation-card span { color: var(--body-quiet-color); font-size: 13px; line-height: 1.45; }
 .operation-card.primary { border-color: #315f36; background: #e8f1e4; color: #213027 !important; }
 .operation-card.alert { border-color: #bd9b56; }
-.operations-all-settings { padding-top: 26px; border-top: 1px solid #d7e0d5; }
-.operations-all-settings > h2 { margin: 0 0 16px; color: var(--body-fg); }
 
 @media (max-width: 1100px) { .operations-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 620px) {

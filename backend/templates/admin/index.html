@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static %}
+{% load static %}
 
 {% block extrastyle %}
   {{ block.super }}
@@ -25,14 +25,6 @@
       </div>
     </section>
 
-    {% if app_list %}
-      <section class="operations-all-settings" aria-labelledby="all-settings-title">
-        <h2 id="all-settings-title">전체 관리 메뉴</h2>
-        {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
-      </section>
-    {% else %}
-      <p>{% translate "You don’t have permission to view or edit anything." %}</p>
-    {% endif %}
   </div>
 {% endblock %}
 

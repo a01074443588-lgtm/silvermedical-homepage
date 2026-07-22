@@ -55,3 +55,16 @@ class StaffResourceTests(TestCase):
         response = self.client.get(reverse("staff_resources:download", args=[resource.slug]))
         self.assertEqual(response.status_code, 200)
         resource.delete()
+
+    def test_admin_dashboard_does_not_repeat_the_navigation_menu(self):
+        administrator = get_user_model().objects.create_superuser(
+            "dashboard-administrator",
+            "dashboard@example.com",
+            "long-test-password",
+        )
+        self.client.force_login(administrator)
+
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertContains(response, "자주 하는 업무를 바로 시작하세요")
+        self.assertNotContains(response, "전체 관리 메뉴")
