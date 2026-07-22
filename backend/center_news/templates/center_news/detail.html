@@ -33,12 +33,12 @@
   </section>
 
   <article class="news-article">
-    {% if post.cover_image %}<figure class="news-cover"><img src="{{ post.cover_image.url }}" alt="{{ post.image_alt }}" /><figcaption>{{ post.image_alt }}</figcaption></figure>{% endif %}
+    {% if post.body_format == "plain" and post.cover_image %}<figure class="news-cover"><img src="{{ post.cover_image.url }}" alt="{{ post.image_alt }}" /><figcaption>{{ post.image_alt }}</figcaption></figure>{% endif %}
     {% if post.youtube_embed_url %}
       <div class="news-video"><iframe src="{{ post.youtube_embed_url }}" title="{{ post.title }} 영상" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
     {% endif %}
-    {% if post.body %}<div class="news-body">{{ post.body|render_news_body }}</div>{% endif %}
-    {% if post.gallery_images.all %}
+    {% if post.body %}<div class="news-body rich-news-content">{% if post.body_format == "rich" %}{{ post.body|render_rich_news_body }}{% else %}{{ post.body|render_news_body }}{% endif %}</div>{% endif %}
+    {% if post.body_format == "plain" and post.gallery_images.all %}
       <section class="news-gallery" aria-labelledby="news-gallery-title">
         <div class="news-gallery-heading">
           <p class="eyebrow">사진으로 보는 이야기</p>

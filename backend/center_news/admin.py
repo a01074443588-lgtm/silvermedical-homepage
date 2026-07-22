@@ -1,32 +1,21 @@
+from urllib.parse import urlparse
+
+from bs4 import BeautifulSoup
 from django.contrib import admin, messages
-from django.core.exceptions import PermissionDenied
-from django.http import HttpResponseRedirect
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Max
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import Post, PostImage
-
-
-class PostImageInline(admin.StackedInline):
-    model = PostImage
-    extra = 3
-    fields = ["image", "image_preview", "image_alt", "caption", "sort_order"]
-    readonly_fields = ["image_preview"]
-
-    @admin.display(description="현재 사진")
-    def image_preview(self, obj):
-        if not obj or not obj.image:
-            return "새 사진을 선택해 주세요."
-        return format_html(
-            '<img src="{}" alt="" style="width:240px;max-height:180px;object-fit:contain;border-radius:6px">',
-            obj.image.url,
-        )
+from .models import Post, PostImage, sanitize_rich_text
 
 
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
+    max_editor_images = 150
     list_display = ["title", "category", "publication_status", "is_pinned", "published_at", "updated_at"]
     list_filter = ["category", "status", "is_pinned"]
     search_fields = ["title", "summary", "body"]
@@ -35,7 +24,6 @@ class PostAdmin(admin.ModelAdmin):
     list_editable = ["is_pinned"]
     readonly_fields = ["cover_preview", "created_by", "updated_by", "created_at", "updated_at"]
     actions = ["publish_selected", "move_to_draft"]
-    inlines = [PostImageInline]
     save_on_top = True
     change_form_template = "admin/center_news/post/change_form.html"
     fieldsets = [
@@ -70,8 +58,16 @@ class PostAdmin(admin.ModelAdmin):
     ]
 
     class Media:
-        css = {"all": ("center_news/admin-editor.css",)}
-        js = ("center_news/admin-editor.js",)
+        css = {
+            "all": (
+                "center_news/vendor/quill.snow.css",
+                "center_news/admin-editor.css",
+            )
+        }
+        js = (
+            "center_news/vendor/quill.js",
+            "center_news/admin-editor.js",
+        )
 
     def get_urls(self):
         custom_urls = [
@@ -79,9 +75,51 @@ class PostAdmin(admin.ModelAdmin):
                 "<path:object_id>/preview/",
                 self.admin_site.admin_view(self.preview_view),
                 name="center_news_post_preview",
-            )
+            ),
+            path(
+                "<path:object_id>/editor-image-upload/",
+                self.admin_site.admin_view(self.editor_image_upload),
+                name="center_news_post_editor_image_upload",
+            ),
+            path(
+                "<path:object_id>/editor-image-delete/",
+                self.admin_site.admin_view(self.editor_image_delete),
+                name="center_news_post_editor_image_delete",
+            ),
         ]
         return custom_urls + super().get_urls()
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        assets = []
+        if obj:
+            if obj.cover_image:
+                assets.append(
+                    {
+                        "id": None,
+                        "url": obj.cover_image.url,
+                        "alt": obj.image_alt or "대표 사진",
+                        "is_cover": True,
+                    }
+                )
+            assets.extend(
+                {
+                    "id": image.pk,
+                    "url": image.image.url,
+                    "alt": image.image_alt,
+                    "is_cover": False,
+                }
+                for image in obj.gallery_images.all()
+                if image.image
+            )
+            context["editor_upload_url"] = reverse(
+                "admin:center_news_post_editor_image_upload", args=[obj.pk]
+            )
+            context["editor_delete_url"] = reverse(
+                "admin:center_news_post_editor_image_delete", args=[obj.pk]
+            )
+        context["editor_assets"] = assets
+        context["editor_image_limit"] = self.max_editor_images
+        return super().render_change_form(request, context, add, change, form_url, obj)
 
     def view_on_site(self, obj):
         return reverse("admin:center_news_post_preview", args=[obj.pk])
@@ -111,6 +149,74 @@ class PostAdmin(admin.ModelAdmin):
         response["X-Robots-Tag"] = "noindex, nofollow"
         return response
 
+    def editor_image_upload(self, request, object_id):
+        if request.method != "POST":
+            return JsonResponse({"error": "사진 업로드는 POST 요청만 허용됩니다."}, status=405)
+        post = get_object_or_404(Post, pk=object_id)
+        if not self.has_change_permission(request, post):
+            raise PermissionDenied
+        if post.gallery_images.count() >= self.max_editor_images:
+            return JsonResponse(
+                {"error": f"게시글 한 개에는 사진을 최대 {self.max_editor_images}장까지 보관할 수 있습니다."},
+                status=400,
+            )
+        upload = request.FILES.get("image")
+        if not upload:
+            return JsonResponse({"error": "추가할 사진을 선택해 주세요."}, status=400)
+        alt = (request.POST.get("alt") or upload.name.rsplit(".", 1)[0] or "센터소식 사진")[:160]
+        next_order = (post.gallery_images.aggregate(value=Max("sort_order"))["value"] or 0) + 10
+        try:
+            image = PostImage.objects.create(
+                post=post,
+                image=upload,
+                image_alt=alt,
+                sort_order=next_order,
+            )
+        except ValidationError as exc:
+            return JsonResponse({"error": " ".join(exc.messages)}, status=400)
+        self.log_change(request, post, f"편집기에서 사진 1장을 추가했습니다: {image.image_alt}")
+        return JsonResponse(
+            {
+                "id": image.pk,
+                "url": image.image.url,
+                "alt": image.image_alt,
+                "count": post.gallery_images.count(),
+            }
+        )
+
+    def editor_image_delete(self, request, object_id):
+        if request.method != "POST":
+            return JsonResponse({"error": "사진 삭제는 POST 요청만 허용됩니다."}, status=405)
+        post = get_object_or_404(Post, pk=object_id)
+        if not self.has_change_permission(request, post):
+            raise PermissionDenied
+        image = get_object_or_404(PostImage, post=post, pk=request.POST.get("image_id"))
+        image_url = image.image.url
+        image_alt = image.image_alt
+
+        if post.body_format == Post.BodyFormat.RICH and post.body:
+            target_path = urlparse(image_url).path
+            soup = BeautifulSoup(post.body, "html.parser")
+            for image_node in list(soup.find_all("img")):
+                if urlparse(image_node.get("src", "")).path != target_path:
+                    continue
+                parent = image_node.parent
+                image_node.decompose()
+                if (
+                    parent
+                    and parent.name == "p"
+                    and not parent.get_text(strip=True)
+                    and not parent.find("img")
+                ):
+                    parent.decompose()
+            post.body = sanitize_rich_text("".join(str(node) for node in soup.contents))
+            post.updated_by = request.user
+            post.save(update_fields=["body", "updated_by", "updated_at"])
+
+        image.delete()
+        self.log_change(request, post, f"편집기 사진을 삭제했습니다: {image_alt}")
+        return JsonResponse({"deleted": True, "url": image_url})
+
     @admin.display(description="공개 상태", boolean=True)
     def publication_status(self, obj):
         return obj.is_public_now
@@ -128,6 +234,7 @@ class PostAdmin(admin.ModelAdmin):
         if not obj.created_by_id:
             obj.created_by = request.user
         obj.updated_by = request.user
+        obj.body_format = Post.BodyFormat.RICH
         super().save_model(request, obj, form, change)
 
     def response_change(self, request, obj):

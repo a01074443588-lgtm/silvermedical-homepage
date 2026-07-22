@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
+from bs4 import BeautifulSoup, Comment
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
@@ -18,6 +19,30 @@ from PIL import Image, ImageOps
 
 
 YOUTUBE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{6,20}$")
+RICH_TEXT_CLASS_PATTERN = re.compile(
+    r"^ql-(?:align-(?:center|right|justify)|indent-[1-8]|size-(?:small|large|huge)|font-(?:serif|monospace))$"
+)
+RICH_TEXT_ALLOWED_TAGS = {
+    "a",
+    "blockquote",
+    "br",
+    "em",
+    "h2",
+    "h3",
+    "h4",
+    "hr",
+    "i",
+    "img",
+    "li",
+    "ol",
+    "p",
+    "s",
+    "span",
+    "strong",
+    "u",
+    "ul",
+}
+RICH_TEXT_DROP_TAGS = {"embed", "form", "iframe", "input", "object", "script", "style"}
 
 
 def validate_image_size(upload):
@@ -45,6 +70,84 @@ def optimize_uploaded_image(upload, max_size=(1600, 1600)):
         output = BytesIO()
         image.save(output, format="WEBP", quality=82, method=6)
     return ContentFile(output.getvalue()), f"{Path(upload.name).stem}.webp"
+
+
+def _safe_link(value):
+    parsed = urlparse((value or "").strip())
+    if parsed.scheme and parsed.scheme not in {"http", "https", "mailto", "tel"}:
+        return ""
+    if not parsed.scheme and not (parsed.path.startswith("/") or parsed.path.startswith("#")):
+        return ""
+    return value.strip()
+
+
+def _safe_news_image_src(value):
+    parsed = urlparse((value or "").strip())
+    if parsed.scheme:
+        if parsed.scheme != "https" or parsed.hostname not in {
+            "silvermedical.kr",
+            "www.silvermedical.kr",
+            "staff.silvermedical.kr",
+        }:
+            return ""
+        path = parsed.path
+    else:
+        path = parsed.path
+    if not path.startswith("/news-media/") or ".." in Path(path).parts:
+        return ""
+    return path
+
+
+def sanitize_rich_text(value):
+    """Keep the editor's small formatting subset and local news images only."""
+    soup = BeautifulSoup(value or "", "html.parser")
+    for comment in soup.find_all(string=lambda node: isinstance(node, Comment)):
+        comment.extract()
+
+    for tag in list(soup.find_all(True)):
+        if tag.name in RICH_TEXT_DROP_TAGS:
+            tag.decompose()
+            continue
+        if tag.name not in RICH_TEXT_ALLOWED_TAGS:
+            tag.unwrap()
+            continue
+
+        cleaned_attributes = {}
+        allowed_classes = [
+            item for item in tag.get("class", []) if RICH_TEXT_CLASS_PATTERN.fullmatch(item)
+        ]
+        if allowed_classes:
+            cleaned_attributes["class"] = allowed_classes
+
+        if tag.name == "a":
+            href = _safe_link(tag.get("href", ""))
+            if href:
+                cleaned_attributes["href"] = href
+                cleaned_attributes["rel"] = "noopener noreferrer"
+                if href.startswith(("http://", "https://")):
+                    cleaned_attributes["target"] = "_blank"
+            else:
+                tag.unwrap()
+                continue
+        elif tag.name == "img":
+            src = _safe_news_image_src(tag.get("src", ""))
+            if not src:
+                tag.decompose()
+                continue
+            cleaned_attributes["src"] = src
+            cleaned_attributes["alt"] = (tag.get("alt") or "센터소식 사진").strip()[:160]
+            cleaned_attributes["loading"] = "lazy"
+        elif tag.name == "li" and tag.get("data-list") in {
+            "bullet",
+            "checked",
+            "ordered",
+            "unchecked",
+        }:
+            cleaned_attributes["data-list"] = tag["data-list"]
+
+        tag.attrs = cleaned_attributes
+
+    return "".join(str(node) for node in soup.contents).strip()
 
 
 def extract_youtube_id(url):
@@ -87,6 +190,10 @@ class Post(models.Model):
         DRAFT = "draft", "작성 중"
         PUBLISHED = "published", "공개"
 
+    class BodyFormat(models.TextChoices):
+        PLAIN = "plain", "일반 본문"
+        RICH = "rich", "완성 화면 편집"
+
     category = models.CharField("분류", max_length=20, choices=Category.choices)
     title = models.CharField("제목", max_length=120)
     slug = models.SlugField("게시물 주소", max_length=150, unique=True, allow_unicode=True, blank=True)
@@ -98,7 +205,14 @@ class Post(models.Model):
     body = models.TextField(
         "본문",
         blank=True,
-        help_text="문단 사이에 빈 줄을 넣으면 공개 화면에서도 문단이 나뉩니다.",
+        help_text="완성 화면형 편집기에서 글과 사진을 원하는 순서로 배치합니다.",
+    )
+    body_format = models.CharField(
+        "본문 형식",
+        max_length=10,
+        choices=BodyFormat.choices,
+        default=BodyFormat.PLAIN,
+        editable=False,
     )
     cover_image = models.ImageField(
         "대표 사진",
@@ -165,6 +279,10 @@ class Post(models.Model):
 
     def clean(self):
         super().clean()
+        if self.body_format == self.BodyFormat.RICH:
+            if len(self.body or "") > 1_000_000:
+                raise ValidationError({"body": "본문이 너무 큽니다. 사진은 파일로 추가해 주세요."})
+            self.body = sanitize_rich_text(self.body)
         if self.cover_image and not self.image_alt.strip():
             raise ValidationError({"image_alt": "대표 사진을 사용하면 사진 설명도 입력해 주세요."})
         if self.youtube_url and not extract_youtube_id(self.youtube_url):

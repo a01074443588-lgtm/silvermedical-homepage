@@ -15,14 +15,14 @@ from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 
 from center_news.models import Post, PostImage
-from center_news.naver_import import parse_post_list
+from center_news.naver_import import parse_post_list, render_imported_body
 
 
 POST_LIST_URL = "https://blog.naver.com/PostList.naver"
 BLOG_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 MAX_IMAGE_SIZE = 8 * 1024 * 1024
 ALLOWED_IMAGE_HOSTS = {"postfiles.pstatic.net", "blogfiles.pstatic.net"}
-MAX_IMAGES_PER_POST = 40
+MAX_IMAGES_PER_POST = 150
 
 
 class Command(BaseCommand):
@@ -35,6 +35,11 @@ class Command(BaseCommand):
         parser.add_argument("--username", default="silveradmin")
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--skip-images", action="store_true")
+        parser.add_argument(
+            "--refresh-content",
+            action="store_true",
+            help="기존 글의 본문도 네이버 원문의 문단·사진 순서로 다시 구성합니다.",
+        )
 
     def handle(self, *args, **options):
         blog_id = options["blog_id"].strip()
@@ -101,7 +106,8 @@ class Command(BaseCommand):
                         category=Post.Category.STORY,
                         title=item.title,
                         summary=item.summary,
-                        body=item.body,
+                        body="",
+                        body_format=Post.BodyFormat.RICH,
                         youtube_url=item.youtube_url,
                         naver_blog_url=item.source_url,
                         status=Post.Status.DRAFT,
@@ -144,16 +150,18 @@ class Command(BaseCommand):
                     post.updated_by = author
                     post.save(update_fields=["image_alt", "updated_by", "updated_at"])
 
-                existing_sources = set(
-                    post.gallery_images.exclude(source_url="").values_list("source_url", flat=True)
-                )
+                gallery_by_source = {
+                    image.source_url: image
+                    for image in post.gallery_images.exclude(source_url="")
+                }
                 if not options["skip_images"]:
-                    for index, image_url in enumerate(image_urls[1:], start=2):
+                    for index, image_url in enumerate(image_urls, start=1):
                         sort_order = index * 10
-                        if image_url in existing_sources:
-                            post.gallery_images.filter(source_url=image_url).update(
-                                sort_order=sort_order
-                            )
+                        if image_url in gallery_by_source:
+                            gallery_image = gallery_by_source[image_url]
+                            if gallery_image.sort_order != sort_order:
+                                gallery_image.sort_order = sort_order
+                                gallery_image.save(update_fields=["sort_order"])
                             continue
                         try:
                             image_content, image_name = self._download_image(
@@ -170,7 +178,7 @@ class Command(BaseCommand):
                             image_content.name = image_name
                             gallery_image.image = image_content
                             gallery_image.save()
-                            existing_sources.add(image_url)
+                            gallery_by_source[image_url] = gallery_image
                             added_for_post += 1
                             gallery_added += 1
                         except (requests.RequestException, ValueError) as exc:
@@ -181,10 +189,32 @@ class Command(BaseCommand):
                                 )
                             )
 
+                refresh_content = is_new or options["refresh_content"]
+                if refresh_content:
+                    local_image_urls = {
+                        source_url: image.image.url
+                        for source_url, image in gallery_by_source.items()
+                        if image.image
+                    }
+                    post.body = render_imported_body(
+                        item.body_html,
+                        image_urls,
+                        local_image_urls,
+                    )
+                    post.body_format = Post.BodyFormat.RICH
+                    post.updated_by = author
+                    post.save(update_fields=["body", "body_format", "updated_by", "updated_at"])
+
                 total_added_for_post = added_for_post + int(cover_added_for_post)
                 if not is_new and total_added_for_post:
                     synchronized += 1
-                self._record_admin_history(post, author, is_new, total_added_for_post)
+                self._record_admin_history(
+                    post,
+                    author,
+                    is_new,
+                    total_added_for_post,
+                    refresh_content,
+                )
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -231,7 +261,7 @@ class Command(BaseCommand):
             return author
         return users.filter(is_superuser=True).order_by("pk").first()
 
-    def _record_admin_history(self, post, author, is_new, added_images):
+    def _record_admin_history(self, post, author, is_new, added_images, refreshed_content=False):
         if not author:
             return
         content_type = ContentType.objects.get_for_model(Post)
@@ -239,14 +269,19 @@ class Command(BaseCommand):
             content_type=content_type,
             object_id=str(post.pk),
         )
-        if not is_new and not added_images and history.exists():
+        if not is_new and not added_images and not refreshed_content and history.exists():
             return
 
         if is_new:
             message = "네이버 블로그에서 임시저장 글로 가져왔습니다."
             action_flag = ADDITION
-        elif added_images:
-            message = f"네이버 블로그 사진 {added_images}장을 추가로 동기화했습니다."
+        elif added_images or refreshed_content:
+            details = []
+            if added_images:
+                details.append(f"사진 {added_images}장 추가")
+            if refreshed_content:
+                details.append("글·사진 순서 재구성")
+            message = "네이버 블로그에서 " + ", ".join(details) + " 작업을 완료했습니다."
             action_flag = CHANGE
         else:
             message = "네이버 블로그 가져오기 상태를 확인했습니다."

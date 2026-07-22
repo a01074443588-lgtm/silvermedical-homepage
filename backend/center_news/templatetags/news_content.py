@@ -4,6 +4,8 @@ from django import template
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
+from center_news.models import sanitize_rich_text
+
 
 register = template.Library()
 STRONG_PATTERN = re.compile(r"\*\*(.+?)\*\*")
@@ -44,3 +46,9 @@ def render_news_body(value):
 
     flush_list()
     return mark_safe("".join(blocks))
+
+
+@register.filter
+def render_rich_news_body(value):
+    """Re-sanitize stored editor HTML before marking it safe for display."""
+    return mark_safe(sanitize_rich_text(value))

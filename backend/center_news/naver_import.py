@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import urlsplit, urlunsplit
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 
 BLOG_POST_URL = "https://blog.naver.com/{blog_id}/{log_no}"
@@ -38,6 +38,7 @@ class NaverBlogPost:
     body: str
     summary: str
     source_url: str
+    body_html: str = ""
     image_urls: tuple[str, ...] = ()
     youtube_url: str = ""
 
@@ -134,6 +135,118 @@ def _extract_image_urls(container):
     return tuple(image_urls)
 
 
+def _alignment_class(node):
+    current = node
+    while current and current is not node.parent.parent:
+        classes = " ".join(current.get("class", [])) if isinstance(current, Tag) else ""
+        style = current.get("style", "") if isinstance(current, Tag) else ""
+        combined = f"{classes} {style}".lower()
+        if "center" in combined:
+            return " ql-align-center"
+        if "right" in combined:
+            return " ql-align-right"
+        if "justify" in combined:
+            return " ql-align-justify"
+        current = current.parent
+    return ""
+
+
+def _paragraph_to_html(paragraph):
+    text = normalize_text(paragraph.get_text(" ", strip=True))
+    if not text:
+        return ""
+    escaped = html.escape(text)
+    alignment = _alignment_class(paragraph)
+    class_attribute = f' class="{alignment.strip()}"' if alignment else ""
+    style_text = " ".join(
+        [paragraph.get("style", "")]
+        + [node.get("style", "") for node in paragraph.find_all(True)]
+    ).lower()
+    is_heading = bool(paragraph.find(["b", "strong"])) or "font-weight" in style_text
+    if is_heading and len(text) <= 120:
+        return f"<h2{class_attribute}>{escaped}</h2>"
+    if paragraph.find_parent("li"):
+        return f"<ul><li>{escaped}</li></ul>"
+    return f"<p{class_attribute}>{escaped}</p>"
+
+
+def _extract_rich_body(container):
+    image_urls = list(_extract_image_urls(container))
+    eligible_images = set(image_urls)
+    image_indexes = {url: index for index, url in enumerate(image_urls, start=1)}
+    used_images = set()
+    blocks = []
+
+    components = container.select(":scope > .se-component")
+    if not components:
+        components = [node for node in container.children if isinstance(node, Tag)]
+
+    for component in components:
+        classes = set(component.get("class", []))
+        if "se-horizontalLine" in classes:
+            blocks.append("<hr>")
+            continue
+
+        component_images = []
+        candidates = (
+            [component]
+            if component.name == "img" and "se-image-resource" in component.get("class", [])
+            else component.select("img.se-image-resource")
+        )
+        for image_node in candidates:
+            image_url = image_node.get("data-lazy-src") or image_node.get("src") or ""
+            if not image_url:
+                continue
+            normalized_url = _normalize_image_url(image_url)
+            if normalized_url not in eligible_images or normalized_url in used_images:
+                continue
+            used_images.add(normalized_url)
+            component_images.append((normalized_url, normalize_text(image_node.get("alt", ""))))
+
+        for image_url, alt_text in component_images:
+            token = f"__NAVER_IMAGE_{image_indexes[image_url]}__"
+            alt = html.escape(alt_text or "센터소식 사진", quote=True)
+            blocks.append(
+                f'<p class="ql-align-center"><img src="{token}" alt="{alt}"></p>'
+            )
+        if component_images:
+            continue
+
+        paragraphs = (
+            [component]
+            if "se-text-paragraph" in component.get("class", [])
+            else component.select(".se-text-paragraph")
+        )
+        if paragraphs:
+            blocks.extend(filter(None, (_paragraph_to_html(item) for item in paragraphs)))
+            continue
+
+        if "se-quotation" in classes:
+            quote = normalize_text(component.get_text(" ", strip=True))
+            if quote:
+                blocks.append(f"<blockquote>{html.escape(quote)}</blockquote>")
+
+    return "".join(blocks), tuple(image_urls)
+
+
+def render_imported_body(body_html, image_urls, local_image_urls):
+    rendered = body_html or ""
+    for index, image_url in enumerate(image_urls, start=1):
+        rendered = rendered.replace(
+            f"__NAVER_IMAGE_{index}__",
+            html.escape(local_image_urls.get(image_url, ""), quote=True),
+        )
+
+    soup = BeautifulSoup(rendered, "html.parser")
+    for image in list(soup.find_all("img")):
+        if not image.get("src"):
+            parent = image.parent
+            image.decompose()
+            if parent and parent.name == "p" and not parent.get_text(strip=True) and not parent.find("img"):
+                parent.decompose()
+    return "".join(str(node) for node in soup.contents)
+
+
 def _extract_youtube_url(container):
     iframe = container.select_one('iframe[src*="youtube.com/embed/"]')
     if iframe:
@@ -178,6 +291,7 @@ def parse_post_list(html_text, blog_id):
         original_title = normalize_text(title_node.get_text(" ", strip=True))
         title = rewrite_title(log_no, original_title)
         paragraphs = _extract_body_paragraphs(content_node)
+        body_html, image_urls = _extract_rich_body(content_node)
         posts.append(
             NaverBlogPost(
                 log_no=log_no,
@@ -187,7 +301,8 @@ def parse_post_list(html_text, blog_id):
                 body="\n\n".join(paragraphs),
                 summary=build_summary(paragraphs, title),
                 source_url=BLOG_POST_URL.format(blog_id=blog_id, log_no=log_no),
-                image_urls=_extract_image_urls(content_node),
+                body_html=body_html,
+                image_urls=image_urls,
                 youtube_url=_extract_youtube_url(content_node),
             )
         )

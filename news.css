@@ -425,6 +425,84 @@
   padding-left: 1.35em;
 }
 
+.rich-news-content > *:first-child {
+  margin-top: 0;
+}
+
+.rich-news-content > *:last-child {
+  margin-bottom: 0;
+}
+
+.rich-news-content h3,
+.rich-news-content h4 {
+  margin: 34px 0 14px;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.rich-news-content h3 {
+  font-size: 1.35rem;
+}
+
+.rich-news-content h4 {
+  font-size: 1.15rem;
+}
+
+.rich-news-content img {
+  display: block;
+  width: auto;
+  max-width: min(100%, 920px);
+  max-height: 880px;
+  margin: 30px auto;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.rich-news-content hr {
+  width: min(180px, 35%);
+  margin: 42px auto;
+  border: 0;
+  border-top: 2px solid #cfd9c8;
+}
+
+.rich-news-content a {
+  color: #245f31;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.rich-news-content .ql-align-center {
+  text-align: center;
+}
+
+.rich-news-content .ql-align-right {
+  text-align: right;
+}
+
+.rich-news-content .ql-align-justify {
+  text-align: justify;
+}
+
+.rich-news-content .ql-size-small {
+  font-size: 0.85em;
+}
+
+.rich-news-content .ql-size-large {
+  font-size: 1.25em;
+}
+
+.rich-news-content .ql-size-huge {
+  font-size: 1.6em;
+}
+
+.rich-news-content .ql-font-serif {
+  font-family: Georgia, "Noto Serif KR", "Nanum Myeongjo", serif;
+}
+
+.rich-news-content .ql-font-monospace {
+  font-family: Consolas, "Courier New", monospace;
+}
+
 .news-gallery {
   margin-top: 56px;
   padding-top: 40px;
