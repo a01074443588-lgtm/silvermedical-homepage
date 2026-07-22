@@ -38,6 +38,37 @@ document.querySelectorAll(".js-smart-contact").forEach((link) => {
   });
 });
 
+document.querySelectorAll(".js-copy-address").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const address = button.dataset.address;
+    if (!address) return;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(address);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = address;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.append(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+      }
+
+      const originalLabel = button.textContent;
+      button.textContent = "주소 복사됨";
+      window.setTimeout(() => {
+        button.textContent = originalLabel;
+      }, 1800);
+    } catch {
+      button.textContent = "복사하지 못했습니다";
+    }
+  });
+});
+
 const consultationEntries = document.querySelectorAll(".consultation-entry");
 if (consultationEntries.length) {
   fetch("/consult/health/", {

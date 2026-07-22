@@ -328,6 +328,8 @@ img {
   border: 1px solid transparent;
   border-radius: var(--radius);
   padding: 13px 20px;
+  cursor: pointer;
+  font: inherit;
   font-weight: 900;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
@@ -2122,8 +2124,13 @@ body {
 
 .location-address h2 {
   margin: 0 0 26px;
-  font-size: clamp(34px, 5vw, 56px);
+  font-size: 44px;
   line-height: 1.24;
+}
+
+.location-address h2 span {
+  display: block;
+  white-space: nowrap;
 }
 
 .location-address dl {
@@ -2155,16 +2162,68 @@ body {
   box-shadow: var(--shadow);
 }
 
-.location-map img {
+.location-map-visual {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+.location-map-visual img {
   min-height: 380px;
   object-fit: cover;
 }
 
-.location-map span {
+.location-map-label {
+  position: absolute;
+  top: 32%;
+  left: calc(50% + 20px);
+  display: grid;
+  gap: 2px;
+  min-width: 184px;
+  padding: 10px 12px;
+  border: 1px solid rgba(54, 92, 42, 0.22);
+  border-left: 4px solid #03c75a;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 28px rgba(31, 53, 38, 0.2);
+  color: var(--green-deep);
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.location-map-label strong {
+  font-size: 15px;
+}
+
+.location-map-label small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.location-map-caption {
   display: block;
   padding: 16px 20px;
   color: var(--green-strong);
   font-weight: 900;
+}
+
+@media (max-width: 520px) {
+  .location-address h2 {
+    font-size: 32px;
+  }
+
+  .location-map-label {
+    top: 31%;
+    left: 50%;
+    min-width: 164px;
+    padding: 9px 10px;
+    transform: translate(-50%, -108%);
+  }
+
+  .location-map-caption {
+    padding: 14px 16px;
+    font-size: 14px;
+  }
 }
 
 .error-page {
