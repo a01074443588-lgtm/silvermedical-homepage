@@ -12,6 +12,7 @@ from django.utils import timezone
 from PIL import Image
 
 from .models import Post, extract_youtube_id
+from .naver_import import build_summary, parse_post_list, rewrite_title
 
 
 class CenterNewsModelTests(TestCase):
@@ -61,6 +62,43 @@ class CenterNewsModelTests(TestCase):
                 self.assertLessEqual(max(optimized.size), 1600)
                 self.assertEqual(optimized.format, "WEBP")
             post.delete()
+
+
+class NaverImportTests(TestCase):
+    sample_html = """
+    <div id="post-view224338474405">
+      <div class="se-module se-module-text se-title-text">
+        청주 요양원 실버메디컬복지센터 삼겹살 파티 - 고기 냄새가 어르신의 저녁을 바꾼 날 🥓
+      </div>
+      <span class="se_publishDate pcol2">2026. 7. 6. 21:30</span>
+      <div class="se-main-container">
+        <p class="se-text-paragraph">어르신들과 함께 삼겹살을 구워 먹었습니다.</p>
+        <p class="se-text-paragraph">즐거운 저녁 시간이 되었습니다.</p>
+        <img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/sample.jpg?type=w773">
+        <script class="__se_module_data" data-module-v2='{"inputUrl":"https://youtu.be/abcDEF_1234"}'></script>
+      </div>
+    </div>
+    """
+
+    def test_parses_naver_post_content(self):
+        posts = parse_post_list(self.sample_html, "sil3307")
+        self.assertEqual(len(posts), 1)
+        post = posts[0]
+        self.assertEqual(post.log_no, "224338474405")
+        self.assertEqual(post.title, "고기 굽는 향기로 더 즐거워진 저녁, 삼겹살 파티")
+        self.assertEqual(post.published_at.strftime("%Y-%m-%d %H:%M"), "2026-07-06 21:30")
+        self.assertIn("삼겹살을 구워", post.body)
+        self.assertEqual(post.image_url, "https://postfiles.pstatic.net/sample.jpg")
+        self.assertEqual(post.youtube_url, "https://youtu.be/abcDEF_1234")
+
+    def test_summary_is_limited_to_model_length(self):
+        summary = build_summary(["가" * 180, "나" * 180], "대체 제목")
+        self.assertLessEqual(len(summary), 220)
+        self.assertTrue(summary.endswith("..."))
+
+    def test_fallback_title_rewrite_removes_search_prefix_and_emoji(self):
+        title = rewrite_title("999", "청주 요양원 실버메디컬복지센터 따뜻한 봄날 🎶")
+        self.assertEqual(title, "따뜻한 봄날")
 
 
 class CenterNewsPublicViewTests(TestCase):
