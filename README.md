@@ -220,6 +220,13 @@ python manage.py import_naver_blog --blog-id sil3307 --cutoff 2025-07-16 --limit
 ```bash
 python manage.py import_naver_blog --blog-id sil3307 --cutoff 2025-07-16 --limit 10 --refresh-content
 ```
+
+기준일 이후의 글을 한 번에 모두 동기화할 때는 충분히 큰 제한값을 지정합니다. 가져온 글에서
+`같이 읽으면 좋은 글` 또는 `함께 읽으면 좋은 글` 추천 영역은 제외됩니다.
+
+```bash
+python manage.py import_naver_blog --blog-id sil3307 --cutoff 2025-07-16 --limit 100 --refresh-content
+```
 - 관리자에서 여러 글을 한꺼번에 공개해도 네이버 원문 작성일이 홈페이지 게시일로 유지됩니다.
 - 공개 전 어르신·보호자·직원 얼굴, 이름표, 문서와 개인정보 노출 여부를 반드시 확인합니다.
 - 저장하지 않고 대상만 확인하려면 명령 끝에 `--dry-run`을 추가합니다.

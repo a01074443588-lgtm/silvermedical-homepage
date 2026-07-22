@@ -13,6 +13,7 @@ YOUTUBE_URL_PATTERN = re.compile(
     r"https?://(?:www\.)?(?:youtube\.com|youtu\.be)/[^\s\"'<>\\]+",
     re.IGNORECASE,
 )
+RELATED_READS_PATTERN = re.compile(r"(?:같이|함께)\s*읽으면\s*좋은\s*글")
 
 
 TITLE_REWRITES = {
@@ -52,6 +53,18 @@ def normalize_text(value):
     return WHITESPACE_PATTERN.sub(" ", value).strip()
 
 
+def _is_related_reads_component(component):
+    text = normalize_text(component.get_text(" ", strip=True))
+    return bool(RELATED_READS_PATTERN.search(text))
+
+
+def _content_components(container):
+    components = container.select(":scope > .se-component")
+    if not components:
+        components = [node for node in container.children if isinstance(node, Tag)]
+    return [component for component in components if not _is_related_reads_component(component)]
+
+
 def rewrite_title(log_no, title):
     if log_no in TITLE_REWRITES:
         return TITLE_REWRITES[log_no]
@@ -85,6 +98,9 @@ def _parse_published_at(value):
 def _extract_body_paragraphs(container):
     paragraphs = []
     for paragraph in container.select(".se-text-paragraph"):
+        component = paragraph.find_parent(class_=lambda classes: classes and "se-component" in classes)
+        if component and _is_related_reads_component(component):
+            continue
         text = normalize_text(paragraph.get_text(" ", strip=True))
         if not text or (paragraphs and paragraphs[-1] == text):
             continue
@@ -102,9 +118,17 @@ def _normalize_image_url(image_url):
     return urlunsplit((parts.scheme, parts.netloc, parts.path, query, ""))
 
 
-def _extract_image_urls(container):
+def _extract_image_urls(container, components=None):
     candidates = []
-    for image in container.select("img.se-image-resource"):
+    components = components if components is not None else _content_components(container)
+    images = []
+    for component in components:
+        if component.name == "img" and "se-image-resource" in component.get("class", []):
+            images.append(component)
+        else:
+            images.extend(component.select("img.se-image-resource"))
+
+    for image in images:
         image_url = image.get("data-lazy-src") or image.get("src") or ""
         if not image_url:
             continue
@@ -171,15 +195,12 @@ def _paragraph_to_html(paragraph):
 
 
 def _extract_rich_body(container):
-    image_urls = list(_extract_image_urls(container))
+    components = _content_components(container)
+    image_urls = list(_extract_image_urls(container, components))
     eligible_images = set(image_urls)
     image_indexes = {url: index for index, url in enumerate(image_urls, start=1)}
     used_images = set()
     blocks = []
-
-    components = container.select(":scope > .se-component")
-    if not components:
-        components = [node for node in container.children if isinstance(node, Tag)]
 
     for component in components:
         classes = set(component.get("class", []))

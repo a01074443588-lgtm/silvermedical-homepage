@@ -162,6 +162,29 @@ class NaverImportTests(TestCase):
         self.assertLess(rendered.index("첫 문단"), rendered.index("<hr"))
         self.assertLess(rendered.index("<hr"), rendered.index("second.webp"))
 
+    def test_related_reads_component_is_excluded_from_import(self):
+        html = self.sample_html.replace(
+            '<p class="se-text-paragraph">즐거운 저녁 시간이 되었습니다.</p>',
+            '<div class="se-component se-text"><p class="se-text-paragraph">본문 마지막 문단입니다.</p></div>'
+            '<div class="se-component se-text"><p class="se-text-paragraph">같이 읽으면 좋은 글</p>'
+            '<p class="se-text-paragraph"><a href="https://blog.naver.com/sil3307/111">추천 글 제목</a></p></div>'
+            '<div class="se-component se-text"><p class="se-text-paragraph">함께 읽으면 좋은 글</p>'
+            '<p class="se-text-paragraph"><a href="https://blog.naver.com/sil3307/222">다른 추천 글</a></p></div>'
+            '<div class="se-component se-text"><p class="se-text-paragraph">센터 연락처 안내</p></div>',
+        )
+        post = parse_post_list(html, "sil3307")[0]
+
+        self.assertIn("본문 마지막 문단", post.body_html)
+        self.assertIn("센터 연락처 안내", post.body_html)
+        self.assertNotIn("같이 읽으면 좋은 글", post.body_html)
+        self.assertNotIn("추천 글 제목", post.body_html)
+        self.assertNotIn("함께 읽으면 좋은 글", post.body_html)
+        self.assertNotIn("다른 추천 글", post.body_html)
+        self.assertNotIn("같이 읽으면 좋은 글", post.body)
+        self.assertNotIn("추천 글 제목", post.body)
+        self.assertNotIn("함께 읽으면 좋은 글", post.body)
+        self.assertNotIn("다른 추천 글", post.body)
+
     def test_bold_short_paragraph_becomes_heading(self):
         html = self.sample_html.replace(
             '<p class="se-text-paragraph">즐거운 저녁 시간이 되었습니다.</p>',
