@@ -85,19 +85,37 @@ def _extract_body_paragraphs(container):
             continue
         if paragraph.find_parent("li"):
             text = f"• {text}"
+        elif paragraph.find(["b", "strong"]) and len(text) <= 120:
+            text = f"## {text}"
         paragraphs.append(text)
     return paragraphs
 
 
 def _extract_image_url(container):
-    image = container.select_one("img.se-image-resource")
-    if not image:
+    candidates = []
+    for image in container.select("img.se-image-resource"):
+        image_url = image.get("data-lazy-src") or image.get("src") or ""
+        if not image_url:
+            continue
+        try:
+            width = int(image.get("data-width") or 0)
+        except (TypeError, ValueError):
+            width = 0
+        candidates.append((image_url, width))
+
+    if not candidates:
         return ""
-    image_url = image.get("data-lazy-src") or image.get("src") or ""
-    if not image_url:
-        return ""
-    parts = urlsplit(image_url)
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+    # Keep the article's visual order while ignoring tiny placeholders.
+    # Some SmartEditor images omit data-width, so fall back to the best URL.
+    selected_url = next(
+        (image_url for image_url, width in candidates if width >= 320),
+        max(candidates, key=lambda candidate: candidate[1])[0],
+    )
+    parts = urlsplit(selected_url)
+    # Query-free Naver image URLs return a tiny 100px thumbnail. Request the
+    # largest consistently available SmartEditor rendition instead.
+    query = "type=w966" if parts.netloc.endswith("pstatic.net") else parts.query
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, query, ""))
 
 
 def _extract_youtube_url(container):

@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Pretendard Variable";
+  src: url("assets/fonts/PretendardVariable.woff2") format("woff2-variations");
+  font-style: normal;
+  font-weight: 45 920;
+  font-display: swap;
+}
+
 :root {
   --bg: #fffaf1;
   --paper: #ffffff;
@@ -34,7 +42,7 @@ body {
     radial-gradient(circle at top left, rgba(223, 234, 210, 0.7), transparent 34rem),
     var(--bg);
   color: var(--ink);
-  font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+  font-family: "Pretendard Variable", "Pretendard", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
   line-height: 1.68;
   overflow-x: hidden;
 }
@@ -260,6 +268,18 @@ img {
   align-items: center;
   gap: 12px;
   margin-top: 30px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 
 .hero-consult-primary {

@@ -69,7 +69,8 @@ class PostAdmin(admin.ModelAdmin):
 
     @admin.action(description="선택한 글을 지금 공개")
     def publish_selected(self, request, queryset):
-        count = queryset.update(status=Post.Status.PUBLISHED, published_at=timezone.now())
+        queryset.filter(published_at__isnull=True).update(published_at=timezone.now())
+        count = queryset.update(status=Post.Status.PUBLISHED)
         self.message_user(request, f"{count}개 게시글을 공개했습니다.", messages.SUCCESS)
 
     @admin.action(description="선택한 글을 작성 중으로 변경")

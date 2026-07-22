@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "consultations.apps.ConsultationsConfig",
     "staff_notifications.apps.StaffNotificationsConfig",
     "center_news.apps.CenterNewsConfig",
+    "staff_resources.apps.StaffResourcesConfig",
 ]
 
 MIDDLEWARE = [

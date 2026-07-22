@@ -3,6 +3,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -41,6 +42,43 @@ def post_detail(request, slug):
         Post.objects.published().select_related("created_by"),
         slug=slug,
     )
+    category = request.GET.get("category", "").strip()
+    valid_categories = {value for value, _ in Post.Category.choices}
+    if category not in valid_categories:
+        category = ""
+
+    navigation_posts = Post.objects.published()
+    if category:
+        navigation_posts = navigation_posts.filter(category=category)
+    previous_post = (
+        navigation_posts.filter(
+            Q(published_at__lt=post.published_at)
+            | Q(published_at=post.published_at, pk__lt=post.pk)
+        )
+        .order_by("-published_at", "-pk")
+        .first()
+    )
+    next_post = (
+        navigation_posts.filter(
+            Q(published_at__gt=post.published_at)
+            | Q(published_at=post.published_at, pk__gt=post.pk)
+        )
+        .order_by("published_at", "pk")
+        .first()
+    )
+
+    page_number = request.GET.get("page", "1")
+    if not page_number.isdigit() or int(page_number) < 1:
+        page_number = "1"
+    list_query = []
+    if category:
+        list_query.append(f"category={category}")
+    if page_number != "1":
+        list_query.append(f"page={page_number}")
+    list_url = reverse("center_news:list")
+    if list_query:
+        list_url = f"{list_url}?{'&'.join(list_query)}"
+
     related_posts = (
         Post.objects.published()
         .filter(category=post.category)
@@ -49,7 +87,15 @@ def post_detail(request, slug):
     return render(
         request,
         "center_news/detail.html",
-        {"post": post, "related_posts": related_posts},
+        {
+            "post": post,
+            "related_posts": related_posts,
+            "previous_post": previous_post,
+            "next_post": next_post,
+            "selected_category": category,
+            "page_number": page_number,
+            "list_url": list_url,
+        },
     )
 
 

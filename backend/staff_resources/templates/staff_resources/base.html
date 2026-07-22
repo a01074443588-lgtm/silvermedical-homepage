@@ -1,0 +1,23 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>{% block title %}직원 자료실{% endblock %} | 실버메디컬 운영 관리</title>
+    <link rel="stylesheet" href="{% static 'staff_resources/operations.css' %}" />
+  </head>
+  <body>
+    <a class="resource-skip" href="#main-content">본문으로 바로가기</a>
+    <header class="resource-header">
+      <a class="resource-brand" href="{% url 'admin:index' %}">실버메디컬 운영 관리</a>
+      <nav aria-label="직원 메뉴">
+        <a href="{% url 'admin:index' %}">관리 홈</a>
+        <a href="{% url 'staff_resources:list' %}" aria-current="page">직원 자료실</a>
+        <a href="https://silvermedical.kr/" target="_blank" rel="noopener noreferrer">홈페이지</a>
+      </nav>
+    </header>
+    <main id="main-content" class="resource-main">{% block content %}{% endblock %}</main>
+  </body>
+</html>

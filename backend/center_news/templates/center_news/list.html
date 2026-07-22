@@ -19,24 +19,30 @@
   </section>
 
   <section class="news-section detail-section">
-    <nav class="news-filters" aria-label="센터소식 분류">
-      <a href="{% url 'center_news:list' %}"{% if not selected_category %} aria-current="page"{% endif %}>전체</a>
-      {% for value, label in categories %}<a href="{% url 'center_news:list' %}?category={{ value }}"{% if selected_category == value %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
-    </nav>
+    <div class="news-toolbar">
+      <nav class="news-filters" aria-label="센터소식 분류">
+        <a href="{% url 'center_news:list' %}"{% if not selected_category %} aria-current="page"{% endif %}>전체</a>
+        {% for value, label in categories %}<a href="{% url 'center_news:list' %}?category={{ value }}"{% if selected_category == value %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+      </nav>
+      <div class="news-view-toggle" role="group" aria-label="게시글 보기 방식">
+        <button type="button" data-news-view="grid" aria-pressed="true" title="카드형 보기"><span aria-hidden="true">▦</span><span class="visually-hidden">카드형 보기</span></button>
+        <button type="button" data-news-view="list" aria-pressed="false" title="목록형 보기"><span aria-hidden="true">☷</span><span class="visually-hidden">목록형 보기</span></button>
+      </div>
+    </div>
 
     {% if page.object_list %}
       <div class="news-grid">
         {% for post in page.object_list %}
           <article class="news-card{% if post.category == 'notice' %} news-card-notice{% endif %}">
-            <a class="news-card-media" href="{{ post.get_absolute_url }}" aria-label="{{ post.title }} 자세히 보기">
+            <a class="news-card-media" href="{{ post.get_absolute_url }}?{% if selected_category %}category={{ selected_category }}&amp;{% endif %}page={{ page.number }}" aria-label="{{ post.title }} 자세히 보기">
               {% if post.cover_image %}<img src="{{ post.cover_image.url }}" alt="{{ post.image_alt }}" loading="lazy" />{% else %}<span class="news-card-placeholder">{{ post.get_category_display }}</span>{% endif %}
               {% if post.youtube_id %}<span class="video-label">영상 재생</span>{% endif %}
             </a>
             <div class="news-card-body">
               <div class="news-card-meta"><span>{{ post.get_category_display }}</span><time datetime="{{ post.published_at|date:'c' }}">{{ post.published_at|date:"Y.m.d" }}</time>{% if post.is_pinned %}<strong>중요</strong>{% endif %}</div>
-              <h2><a href="{{ post.get_absolute_url }}">{{ post.title }}</a></h2>
+              <h2><a href="{{ post.get_absolute_url }}?{% if selected_category %}category={{ selected_category }}&amp;{% endif %}page={{ page.number }}">{{ post.title }}</a></h2>
               <p>{{ post.summary }}</p>
-              <a class="news-read-more" href="{{ post.get_absolute_url }}">자세히 보기</a>
+              <a class="news-read-more" href="{{ post.get_absolute_url }}?{% if selected_category %}category={{ selected_category }}&amp;{% endif %}page={{ page.number }}">자세히 보기</a>
             </div>
           </article>
         {% endfor %}

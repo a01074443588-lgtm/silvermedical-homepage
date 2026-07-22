@@ -149,6 +149,40 @@ if (homeNewsGrid) {
     });
 }
 
+const newsGrid = document.querySelector(".news-grid");
+const newsViewButtons = document.querySelectorAll("[data-news-view]");
+if (newsGrid && newsViewButtons.length) {
+  const storageKey = "silvermedical-news-view";
+
+  const applyNewsView = (view) => {
+    const selectedView = view === "list" ? "list" : "grid";
+    newsGrid.classList.toggle("is-list-view", selectedView === "list");
+    newsViewButtons.forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.newsView === selectedView));
+    });
+  };
+
+  let savedView = "grid";
+  try {
+    savedView = window.localStorage.getItem(storageKey) || "grid";
+  } catch {
+    savedView = "grid";
+  }
+  applyNewsView(savedView);
+
+  newsViewButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const view = button.dataset.newsView;
+      applyNewsView(view);
+      try {
+        window.localStorage.setItem(storageKey, view);
+      } catch {
+        // Storage may be disabled; the selected view still works for this page.
+      }
+    });
+  });
+}
+
 document.querySelectorAll(".back-to-top").forEach((button) => {
   button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 });

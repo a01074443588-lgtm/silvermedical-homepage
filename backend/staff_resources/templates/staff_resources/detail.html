@@ -1,0 +1,17 @@
+{% extends "staff_resources/base.html" %}
+
+{% block title %}{{ resource.title }}{% endblock %}
+{% block content %}
+  <article class="resource-detail">
+    <nav class="resource-breadcrumb" aria-label="현재 위치"><a href="{% url 'staff_resources:list' %}">직원 자료실</a><span>{{ resource.get_category_display }}</span></nav>
+    <p class="resource-category">{{ resource.get_category_display }} · {{ resource.published_at|date:"Y년 m월 d일" }}</p>
+    <h1>{{ resource.title }}</h1>
+    <p class="resource-summary">{{ resource.summary }}</p>
+    {% if resource.body %}<div class="resource-body">{{ resource.body|linebreaks }}</div>{% endif %}
+    <div class="resource-actions">
+      {% if resource.attachment %}<a class="resource-button primary" href="{% url 'staff_resources:download' resource.slug %}">첨부파일 받기</a>{% endif %}
+      {% if resource.external_url %}<a class="resource-button" href="{{ resource.external_url }}" target="_blank" rel="noopener noreferrer">관련 링크 열기</a>{% endif %}
+      <a class="resource-button" href="{% url 'staff_resources:list' %}">목록으로</a>
+    </div>
+  </article>
+{% endblock %}

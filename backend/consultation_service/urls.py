@@ -7,7 +7,7 @@ from staff_notifications import views as notification_views
 
 admin.site.site_header = "실버메디컬 운영 관리"
 admin.site.site_title = "실버메디컬 운영 관리"
-admin.site.index_title = "상담·급여비용·센터소식 관리"
+admin.site.index_title = "실버메디컬 운영 대시보드"
 admin.site.site_url = "https://silvermedical.kr/"
 
 urlpatterns = [
@@ -26,5 +26,6 @@ urlpatterns = [
         name="notification_service_worker",
     ),
     path("staff/notifications/", include("staff_notifications.urls")),
+    path("staff/resources/", include("staff_resources.urls")),
     path("staff/", admin.site.urls),
 ]

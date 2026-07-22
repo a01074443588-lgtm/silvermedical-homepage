@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'staff_resources/admin-dashboard.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <div id="content-main">
+    <section class="operations-dashboard" aria-labelledby="operations-title">
+      <div class="operations-heading">
+        <div><p>운영 바로가기</p><h1 id="operations-title">자주 하는 업무를 바로 시작하세요</h1></div>
+        <a class="operations-public-link" href="https://silvermedical.kr/" target="_blank" rel="noopener noreferrer">홈페이지 열기</a>
+      </div>
+      <div class="operations-grid">
+        <a class="operation-card primary" href="https://silvermedical.kr/" target="_blank" rel="noopener noreferrer"><img src="{% static 'staff_resources/icons/house.svg' %}" alt="" /><strong>홈페이지 보기</strong><span>방문자에게 보이는 화면을 확인합니다.</span></a>
+        {% if perms.center_news.add_post %}<a class="operation-card" href="{% url 'admin:center_news_post_add' %}"><img src="{% static 'staff_resources/icons/square-pen.svg' %}" alt="" /><strong>새 게시글</strong><span>공지, 센터 이야기와 영상을 등록합니다.</span></a>{% endif %}
+        {% if perms.center_news.view_post %}<a class="operation-card" href="{% url 'admin:center_news_post_changelist' %}"><img src="{% static 'staff_resources/icons/newspaper.svg' %}" alt="" /><strong>게시글 관리</strong><span>작성 중인 글과 공개 글을 관리합니다.</span></a>{% endif %}
+        {% if perms.consultations.view_consultation %}<a class="operation-card alert" href="{% url 'admin:consultations_consultation_changelist' %}"><img src="{% static 'staff_resources/icons/messages-square.svg' %}" alt="" /><strong>상담 접수함</strong><span>새 상담과 처리 상태를 확인합니다.</span></a>{% endif %}
+        {% if perms.benefits.view_benefitschedule %}<a class="operation-card" href="{% url 'admin:benefits_benefitschedule_changelist' %}"><img src="{% static 'staff_resources/icons/calculator.svg' %}" alt="" /><strong>급여비용 설정</strong><span>연도별 수가와 계산 기준을 관리합니다.</span></a>{% endif %}
+        <a class="operation-card" href="{% url 'staff_notifications:dashboard' %}"><img src="{% static 'staff_resources/icons/bell-ring.svg' %}" alt="" /><strong>내 알림 설정</strong><span>상담 알림 기기와 카카오 연결을 확인합니다.</span></a>
+        <a class="operation-card" href="{% url 'staff_resources:list' %}"><img src="{% static 'staff_resources/icons/library-big.svg' %}" alt="" /><strong>직원 자료실</strong><span>내부 업무자료와 교육자료를 확인합니다.</span></a>
+        {% if perms.staff_resources.view_staffresource %}<a class="operation-card" href="{% url 'admin:staff_resources_staffresource_changelist' %}"><img src="{% static 'staff_resources/icons/external-link.svg' %}" alt="" /><strong>직원자료 관리</strong><span>직원에게 공개할 자료를 등록합니다.</span></a>{% endif %}
+      </div>
+    </section>
+
+    {% if app_list %}
+      <section class="operations-all-settings" aria-labelledby="all-settings-title">
+        <h2 id="all-settings-title">전체 관리 메뉴</h2>
+        {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+      </section>
+    {% else %}
+      <p>{% translate "You don’t have permission to view or edit anything." %}</p>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block sidebar %}{% endblock %}

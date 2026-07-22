@@ -13,6 +13,7 @@ from PIL import Image
 
 from .models import Post, extract_youtube_id
 from .naver_import import build_summary, parse_post_list, rewrite_title
+from .templatetags.news_content import render_news_body
 
 
 class CenterNewsModelTests(TestCase):
@@ -88,8 +89,34 @@ class NaverImportTests(TestCase):
         self.assertEqual(post.title, "고기 굽는 향기로 더 즐거워진 저녁, 삼겹살 파티")
         self.assertEqual(post.published_at.strftime("%Y-%m-%d %H:%M"), "2026-07-06 21:30")
         self.assertIn("삼겹살을 구워", post.body)
-        self.assertEqual(post.image_url, "https://postfiles.pstatic.net/sample.jpg")
+        self.assertEqual(post.image_url, "https://postfiles.pstatic.net/sample.jpg?type=w966")
         self.assertEqual(post.youtube_url, "https://youtu.be/abcDEF_1234")
+
+    def test_bold_short_paragraph_becomes_heading(self):
+        html = self.sample_html.replace(
+            '<p class="se-text-paragraph">즐거운 저녁 시간이 되었습니다.</p>',
+            '<p class="se-text-paragraph"><b>1. 함께한 저녁</b></p>',
+        )
+        post = parse_post_list(html, "sil3307")[0]
+        self.assertIn("## 1. 함께한 저녁", post.body)
+
+    def test_image_picker_skips_small_placeholder_for_wider_photo(self):
+        html = self.sample_html.replace(
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/sample.jpg?type=w773">',
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/small.jpg?type=w80_blur" data-width="100">'
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/wide.jpg?type=w773" data-width="693">',
+        )
+        post = parse_post_list(html, "sil3307")[0]
+        self.assertEqual(post.image_url, "https://postfiles.pstatic.net/wide.jpg?type=w966")
+
+    def test_image_picker_keeps_first_full_size_article_photo(self):
+        html = self.sample_html.replace(
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/sample.jpg?type=w773">',
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/first.jpg?type=w773" data-width="693">'
+            '<img class="se-image-resource" data-lazy-src="https://postfiles.pstatic.net/later.jpg?type=w773" data-width="2250">',
+        )
+        post = parse_post_list(html, "sil3307")[0]
+        self.assertEqual(post.image_url, "https://postfiles.pstatic.net/first.jpg?type=w966")
 
     def test_summary_is_limited_to_model_length(self):
         summary = build_summary(["가" * 180, "나" * 180], "대체 제목")
@@ -99,6 +126,13 @@ class NaverImportTests(TestCase):
     def test_fallback_title_rewrite_removes_search_prefix_and_emoji(self):
         title = rewrite_title("999", "청주 요양원 실버메디컬복지센터 따뜻한 봄날 🎶")
         self.assertEqual(title, "따뜻한 봄날")
+
+    def test_news_body_formatter_preserves_structure_and_escapes_html(self):
+        rendered = render_news_body("## 소제목\n\n• 첫 항목\n\n<script>alert(1)</script>")
+        self.assertIn("<h2>소제목</h2>", rendered)
+        self.assertIn("<li>첫 항목</li>", rendered)
+        self.assertNotIn("<script>", rendered)
+        self.assertIn("&lt;script&gt;", rendered)
 
 
 class CenterNewsPublicViewTests(TestCase):
@@ -144,6 +178,28 @@ class CenterNewsPublicViewTests(TestCase):
         response = self.client.get(self.draft_post.get_absolute_url())
         self.assertEqual(response.status_code, 404)
 
+    def test_detail_has_previous_next_and_return_navigation(self):
+        older = Post.objects.create(
+            category=Post.Category.NOTICE,
+            title="이전 공지",
+            summary="이전 공지 내용입니다.",
+            status=Post.Status.PUBLISHED,
+            published_at=self.public_post.published_at - timedelta(days=1),
+        )
+        newer = Post.objects.create(
+            category=Post.Category.NOTICE,
+            title="다음 공지",
+            summary="다음 공지 내용입니다.",
+            status=Post.Status.PUBLISHED,
+            published_at=self.public_post.published_at + timedelta(minutes=1),
+        )
+        response = self.client.get(
+            f"{self.public_post.get_absolute_url()}?category=notice&page=2"
+        )
+        self.assertContains(response, older.title)
+        self.assertContains(response, newer.title)
+        self.assertContains(response, "/news/?category=notice&amp;page=2")
+
     def test_admin_requires_staff_login(self):
         response = self.client.get(reverse("admin:center_news_post_add"))
         self.assertEqual(response.status_code, 302)
@@ -154,6 +210,28 @@ class CenterNewsPublicViewTests(TestCase):
         self.client.force_login(user)
         response = self.client.get(reverse("admin:center_news_post_add"))
         self.assertEqual(response.status_code, 200)
+
+    def test_bulk_publish_preserves_imported_publication_date(self):
+        user = get_user_model().objects.create_superuser(
+            "publishadmin", "publish@example.com", "long-test-password"
+        )
+        imported_date = timezone.now() - timedelta(days=300)
+        draft = Post.objects.create(
+            category=Post.Category.STORY,
+            title="날짜가 보존되는 블로그 글",
+            summary="네이버 블로그 원문 작성일을 보존합니다.",
+            status=Post.Status.DRAFT,
+            published_at=imported_date,
+        )
+        self.client.force_login(user)
+        response = self.client.post(
+            reverse("admin:center_news_post_changelist"),
+            {"action": "publish_selected", "_selected_action": [draft.pk]},
+        )
+        self.assertEqual(response.status_code, 302)
+        draft.refresh_from_db()
+        self.assertEqual(draft.status, Post.Status.PUBLISHED)
+        self.assertEqual(draft.published_at, imported_date)
 
     def test_staff_without_content_permission_cannot_open_post_admin(self):
         user = get_user_model().objects.create_user(

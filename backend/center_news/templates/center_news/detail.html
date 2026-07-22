@@ -1,4 +1,5 @@
 {% extends "center_news/base.html" %}
+{% load news_content %}
 
 {% block title %}{{ post.title }} | 실버메디컬복지센터{% endblock %}
 {% block description %}{{ post.summary }}{% endblock %}
@@ -28,14 +29,19 @@
     {% if post.youtube_embed_url %}
       <div class="news-video"><iframe src="{{ post.youtube_embed_url }}" title="{{ post.title }} 영상" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
     {% endif %}
-    {% if post.body %}<div class="news-body">{{ post.body|linebreaks }}</div>{% endif %}
+    {% if post.body %}<div class="news-body">{{ post.body|render_news_body }}</div>{% endif %}
     {% if post.naver_blog_url or post.youtube_url %}
       <div class="news-external-links">
         {% if post.naver_blog_url %}<a class="button primary" href="{{ post.naver_blog_url }}" target="_blank" rel="noopener noreferrer">네이버 블로그 원문 보기</a>{% endif %}
         {% if post.youtube_url %}<a class="button outline" href="{{ post.youtube_url }}" target="_blank" rel="noopener noreferrer">유튜브에서 보기</a>{% endif %}
       </div>
     {% endif %}
-    <div class="news-detail-actions"><a class="button outline" href="{% url 'center_news:list' %}">센터소식 목록</a><a class="button primary" href="/contact.html">상담문의</a></div>
+    <nav class="news-post-navigation" aria-label="센터소식 글 이동">
+      <div class="news-post-navigation-item previous">{% if previous_post %}<span>이전 글</span><a href="{{ previous_post.get_absolute_url }}?{% if selected_category %}category={{ selected_category }}&amp;{% endif %}page={{ page_number }}">{{ previous_post.title }}</a>{% endif %}</div>
+      <a class="news-list-return" href="{{ list_url }}">목록으로</a>
+      <div class="news-post-navigation-item next">{% if next_post %}<span>다음 글</span><a href="{{ next_post.get_absolute_url }}?{% if selected_category %}category={{ selected_category }}&amp;{% endif %}page={{ page_number }}">{{ next_post.title }}</a>{% endif %}</div>
+    </nav>
+    <div class="news-detail-actions"><a class="button primary" href="/contact.html">상담문의</a></div>
   </article>
 
   {% if related_posts %}

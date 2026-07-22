@@ -84,6 +84,19 @@ class ConsultationViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "상담 접수함")
 
+    def test_superuser_dashboard_shows_operations_launcher(self):
+        user = get_user_model().objects.create_superuser(
+            username="dashboard-test",
+            email="dashboard@example.com",
+            password="A-long-test-password-2026",
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse("admin:index"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "운영 바로가기")
+        self.assertContains(response, "직원 자료실")
+        self.assertContains(response, "새 게시글")
+
 
 class StaffSessionSafetyTests(TestCase):
     def setUp(self):
